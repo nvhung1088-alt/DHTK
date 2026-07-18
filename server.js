@@ -871,11 +871,13 @@ async function performPosSync(posCredentials) {
 
 // 10. PANCAKE POS PROXY SYNC (SECURE & ALIGNED WITH MOCKUP)
 app.get('/api/pos/sync', (req, res, next) => {
-    // Neu la request tu Vercel Cron thi bypass authenticateToken
-    if (req.headers['x-vercel-cron'] === '1') {
-        return next();
+    // Neu la request tu Vercel Cron: Vercel gui Authorization: Bearer <CRON_SECRET>
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = req.headers['authorization'];
+    if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
+        return next(); // Bypass JWT - day la Vercel Cron hop le
     }
-    authenticateToken(req, res, next);
+    authenticateToken(req, res, next); // Nguoi dung Admin binh thuong
 }, async (req, res) => {
     const posCredentials = {
         apiKey: process.env.PANCAKE_API_KEY,
