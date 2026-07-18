@@ -4,7 +4,6 @@ const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { createClient } = require('@libsql/client/web');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,15 +13,59 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-let dbUrl = (process.env.TURSO_DATABASE_URL || 'libsql://fallback.turso.io').trim();
-if (dbUrl.startsWith('libsql://')) {
-    dbUrl = dbUrl.replace('libsql://', 'https://');
+// --- NATIVE TURSO HTTP CLIENT ---
+async function executeTurso(sql, args = []) {
+    let url = (process.env.TURSO_DATABASE_URL || 'https://fallback.turso.io').trim();
+    if (url.startsWith('libsql://')) url = url.replace('libsql://', 'https://');
+    
+    const token = (process.env.TURSO_AUTH_TOKEN || '').trim();
+
+    const reqBody = {
+        requests: [
+            { type: "execute", stmt: { sql, args: args.map(a => ({ type: "text", value: String(a) })) } },
+            { type: "close" }
+        ]
+    };
+
+    const res = await fetch(`${url}/v2/pipeline`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(reqBody)
+    });
+
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Turso HTTP Error: ${res.status} ${res.statusText} - ${text}`);
+    }
+
+    const data = await res.json();
+    const execResult = data.results[0];
+    
+    if (execResult.type === 'error') {
+        throw new Error(execResult.error.message);
+    }
+    
+    const cols = execResult.response.result.cols.map(c => c.name);
+    const rows = execResult.response.result.rows.map(r => {
+        const rowData = {};
+        r.forEach((cell, idx) => {
+            rowData[cols[idx]] = cell.value;
+        });
+        return rowData;
+    });
+
+    return { rows };
 }
 
-const db = createClient({
-    url: dbUrl,
-    authToken: (process.env.TURSO_AUTH_TOKEN || '').trim()
-});
+const db = { 
+    execute: (obj) => {
+        if (typeof obj === 'string') return executeTurso(obj, []);
+        return executeTurso(obj.sql, obj.args || []);
+    }
+};
 
 // --- DATABASE INITIALIZATION WITH TURSO ---
 async function initDB() {
