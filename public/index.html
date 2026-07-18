@@ -118,7 +118,8 @@
         /* Modals */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
         .modal-overlay.active { display: flex; }
-        .close-btn { cursor: pointer; font-size: 1.5rem; font-weight: bold; color: var(--text-muted); border:none; background:none; }
+        .close-btn { cursor: pointer; font-size: 2rem; font-weight: bold; color: var(--text-main); border:none; background:rgba(255,255,255,0.9); width:45px; height:45px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 10px rgba(0,0,0,0.15); z-index:99999; transition:0.2s; line-height:1;}
+        .close-btn:hover { background:white; transform:scale(1.1); box-shadow:0 4px 15px rgba(0,0,0,0.2); }
         
         .admin-modal { background: white; width: 90%; max-width: 750px; border-radius: 16px; padding: 2rem; position: relative; max-height: 90vh; overflow-y:auto;}
         .cart-modal { background: white; width: 100%; max-width: 400px; height: 100%; padding: 1.5rem; display: flex; flex-direction: column; position: absolute; right: 0; }
@@ -291,13 +292,14 @@ ZIPKHOA3040	Zip khóa	mờ	30x40cm	Túi ZIP	https://content.pancake.vn/2-25/2025
 
 
     <div class="modal-overlay" id="detailModalOverlay" onclick="if(event.target === this) closeModal('detailModalOverlay')">
+        <button class="close-btn" onclick="closeModal('detailModalOverlay')" style="position:fixed; top:15px; right:15px; z-index:99999;">&times;</button>
         <div class="detail-modal" id="detailModalContent"></div>
     </div>
 
     <!-- Giỏ hàng Modal -->
     <div class="modal-overlay" id="cartModal" onclick="if(event.target === this) toggleCart()" style="justify-content: flex-end;">
         <div class="cart-modal" onclick="event.stopPropagation()">
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem; position: sticky; top: -1.5rem; background: white; z-index: 10; padding-top: 1.5rem; margin-top: -1.5rem;">
                 <h2>Giỏ hàng của bạn</h2>
                 <button class="close-btn" onclick="toggleCart()">&times;</button>
             </div>
@@ -1199,7 +1201,6 @@ ZIPKHOA3040	Zip khóa	mờ	30x40cm	Túi ZIP	https://content.pancake.vn/2-25/2025
 
             const content = document.getElementById('detailModalContent');
             content.innerHTML = `
-                <button class="close-btn" onclick="closeModal('detailModalOverlay')" style="position:absolute; top:15px; right:20px; z-index:10;">&times;</button>
                 <div class="detail-left">
                     ${imgUrl ? `<img src="${imgUrl}" alt="Ảnh SP">` : `<div style="color:var(--text-muted);">Chưa có ảnh</div>`}
                     <div class="admin-only-btn" style="position:absolute; bottom:10px; left:10px; right:10px;">
@@ -1262,7 +1263,6 @@ ZIPKHOA3040	Zip khóa	mờ	30x40cm	Túi ZIP	https://content.pancake.vn/2-25/2025
             const activeV = getActiveVariant(id);
             if(!activeV) return alert("Vui lòng chọn đủ thuộc tính phân loại!");
             addToCart(id, activeV.id, parseInt(document.getElementById(`qty-modal-${id}`).value)); 
-            closeModal('detailModalOverlay');
         }
 
         function addToCart(pId, vId, qty) {
