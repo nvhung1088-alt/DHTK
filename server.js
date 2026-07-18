@@ -4,7 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { createClient } = require('@libsql/client');
+const { createClient } = require('@libsql/client/web');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
