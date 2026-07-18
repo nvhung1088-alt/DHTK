@@ -870,6 +870,7 @@ async function performPosSync(posCredentials) {
 }
 
 // 10. PANCAKE POS PROXY SYNC (SECURE & ALIGNED WITH MOCKUP)
+// Trigger redeploy to load newly added CRON_SECRET env variable
 app.get('/api/pos/sync', (req, res, next) => {
     // Neu la request tu Vercel Cron: Vercel gui Authorization: Bearer <CRON_SECRET>
     const cronSecret = process.env.CRON_SECRET;
