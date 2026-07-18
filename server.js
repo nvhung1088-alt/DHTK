@@ -14,14 +14,13 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-let db;
+const db = createClient({
+    url: process.env.TURSO_DATABASE_URL || '',
+    authToken: process.env.TURSO_AUTH_TOKEN || ''
+});
 
 // --- DATABASE INITIALIZATION WITH TURSO ---
 async function initDB() {
-    db = createClient({
-        url: process.env.TURSO_DATABASE_URL,
-        authToken: process.env.TURSO_AUTH_TOKEN
-    });
 
     // Create Tables
     await db.execute(`
@@ -797,14 +796,21 @@ app.post('/api/telegram/test', authenticateToken, async (req, res) => {
     }
 });
 
-// START EXPRESS SERVER AND RUN DB INITIALIZATION
-initDB().then(() => {
-    app.listen(PORT, () => {
-        console.log(`==================================================`);
-        console.log(`🚀 SERVER RUNNING AT: http://localhost:${PORT}`);
-        console.log(`🔑 Default Admin: admin | dhtk2024`);
-        console.log(`==================================================`);
+// START EXPRESS SERVER OR EXPORT FOR VERCEL
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    initDB().then(() => {
+        app.listen(PORT, () => {
+            console.log(`==================================================`);
+            console.log(`🚀 SERVER RUNNING AT: http://localhost:${PORT}`);
+            console.log(`🔑 Default Admin: admin | dhtk2024`);
+            console.log(`==================================================`);
+        });
+    }).catch(err => {
+        console.error('Failed to initialize database:', err);
     });
-}).catch(err => {
-    console.error('Failed to initialize database:', err);
-});
+} else {
+    // Trên Vercel, chạy ngầm khởi tạo cấu trúc bảng (nếu cần)
+    initDB().catch(err => console.error('Failed to init DB on Vercel:', err));
+}
+
+module.exports = app;
