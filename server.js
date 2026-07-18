@@ -7,9 +7,30 @@ const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'dhtk_fallback_secret_2026';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    if (process.env.VERCEL) {
+        console.error('[SECURITY] CRITICAL: JWT_SECRET env variable is not set! Admin auth is unsafe.');
+    } else {
+        throw new Error('FATAL: JWT_SECRET environment variable is required. Please set it in .env or Vercel settings.');
+    }
+}
 
-app.use(cors());
+// Cho phep cac domain hop le
+const ALLOWED_ORIGINS = [
+    'https://dhtk.vercel.app',
+    'https://donghangtietkiem.com',
+    'https://www.donghangtietkiem.com',
+    'http://localhost:3000'
+];
+app.use(cors({
+    origin: (origin, callback) => {
+        // Cho phep request khong co origin (Postman, curl, mobile app)
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+        callback(new Error('CORS: Domain not allowed'));
+    },
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS']
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -545,28 +566,33 @@ app.post('/api/orders', (req, res, next) => {
 
         const formatMoney = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
+        // Sanitize user-input truoc khi dua vao Telegram message (chong HTML injection)
+        const sanitize = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
         let itemsText = '';
         processedItems.forEach((item, idx) => {
-            itemsText += `${idx + 1}. <b>${item.name}</b> (SKU: <code>${item.sku || 'N/A'}</code>)\n`;
+            itemsText += `${idx + 1}. <b>${sanitize(item.name)}</b> (SKU: <code>${sanitize(item.sku || 'N/A')}</code>)\n`;
             itemsText += `   SL: <b>${item.qty}</b> x Đơn giá: <s>${formatMoney(item.originalPrice)}</s> -> <b>${formatMoney(item.finalPrice)}</b> (Chiết khấu sỉ)\n`;
             itemsText += `   Thành tiền: <b>${formatMoney(item.total)}</b>\n\n`;
         });
 
         const totalDiscount = originalAmount - totalAmount;
 
-        const messageText = `🛒 <b>ĐƠN HÀNG MỚI TỪ ${storeName.toUpperCase()}</b>\n` +
+        const messageText = `🛒 <b>ĐƠN HÀNG MỚI TỪ ${sanitize(storeName).toUpperCase()}</b>\n` +
             `📅 Thời gian: ${new Date().toLocaleString('vi-VN')}\n` +
             `━━━━━━━━━━━━━━━━━━━━━\n\n` +
-            `👤 <b>Khách hàng:</b> ${customerInfo.name}\n` +
-            `📞 <b>Điện thoại:</b> <code>${customerInfo.phone}</code>\n` +
-            `📍 <b>Địa chỉ:</b> ${customerInfo.address}\n\n` +
-            `📦 <b>Danh sách sản phẩm:</b>\n` +
+            `👤 <b>Khách hàng:</b> ${sanitize(customerInfo.name)}\n` +
+            `📞 <b>Điện thoại:</b> <code>${sanitize(customerInfo.phone)}</code>\n` +
+            `📍 <b>Địa chỉ:</b> ${sanitize(customerInfo.address)}\n` +
+            (customerInfo.note ? `📝 <b>Ghi chú:</b> ${sanitize(customerInfo.note)}\n` : '') +
+            `\n📦 <b>Danh sách sản phẩm:</b>\n` +
             `${itemsText}` +
             `━━━━━━━━━━━━━━━━━━━━━\n` +
             `💰 <b>Tổng giá trị gốc:</b> ${formatMoney(originalAmount)}\n` +
             `🎁 <b>Tổng chiết khấu:</b> -${formatMoney(totalDiscount)}\n` +
             `💵 <b>Tổng thanh toán:</b> <b>${formatMoney(totalAmount)}</b>\n\n` +
             `✍️ <i>Đơn hàng tự động cộng gộp chiết khấu theo nhóm sản phẩm.</i>`;
+
 
         let telegramSent = false;
         if (tgToken && tgChatId) {
@@ -850,32 +876,26 @@ app.post('/api/telegram/test', authenticateToken, async (req, res) => {
     }
 });
 
-// 12. DEBUG ENDPOINT (TO CHECK VERCEL ENVIRONMENT VARIABLES)
-app.get('/api/debug', (req, res) => {
+// 12. DEBUG ENDPOINT (ADMIN ONLY - Bao mat)
+app.get('/api/debug', authenticateToken, (req, res) => {
     res.json({
         node_env: process.env.NODE_ENV,
-        vercel: process.env.VERCEL,
+        vercel: !!process.env.VERCEL,
         has_turso_url: !!process.env.TURSO_DATABASE_URL,
-        url_prefix: process.env.TURSO_DATABASE_URL ? process.env.TURSO_DATABASE_URL.substring(0, 15) + '...' : 'MISSING',
         has_turso_token: !!process.env.TURSO_AUTH_TOKEN,
-        token_length: process.env.TURSO_AUTH_TOKEN ? process.env.TURSO_AUTH_TOKEN.length : 0,
-        parsedUrl: dbUrl,
-        hasDbUrlVariable: dbUrl !== 'libsql://fallback.turso.io' && dbUrl !== 'https://fallback.turso.io'
+        has_jwt_secret: !!process.env.JWT_SECRET
     });
 });
 
-// 13. DB TEST ENDPOINT (TO CATCH REAL EXECUTE ERROR)
-app.get('/api/db-test', async (req, res) => {
+// 13. DB TEST ENDPOINT (ADMIN ONLY - Bao mat)
+app.get('/api/db-test', authenticateToken, async (req, res) => {
     try {
         const result = await db.execute('SELECT 1 as ok');
         res.json({ success: true, data: result.rows });
     } catch (err) {
         res.status(500).json({ 
             success: false, 
-            message: err.message,
-            name: err.name,
-            code: err.code,
-            stack: err.stack
+            message: err.message
         });
     }
 });
