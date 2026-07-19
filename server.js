@@ -34,7 +34,7 @@ app.use(cors({
     },
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS']
 }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- NATIVE TURSO HTTP CLIENT ---
@@ -477,29 +477,35 @@ app.post('/api/products/import', authenticateToken, async (req, res) => {
     try {
         await db.execute('DELETE FROM products');
 
-        for (const p of products) {
-            const detailsJson = JSON.stringify({
-                images: p.images || [],
-                pricingTiers: p.pricingTiers || [],
-                options: p.options || [],
-                variants: p.variants || [],
-                description: p.description || ''
+        const CHUNK_SIZE = 1000;
+        for (let i = 0; i < products.length; i += CHUNK_SIZE) {
+            const chunk = products.slice(i, i + CHUNK_SIZE);
+            const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+            let args = [];
+            chunk.forEach(p => {
+                const detailsJson = JSON.stringify({
+                    images: p.images || [],
+                    pricingTiers: p.pricingTiers || [],
+                    options: p.options || [],
+                    variants: p.variants || [],
+                    description: p.description || '',
+                    weight: p.weight || 0
+                });
+                args.push(
+                    String(p.id), String(p.name || ''), String(p.sku || ''), parseInt(p.price) || 0, parseInt(p.costPrice) || 0,
+                    String(p.imageUrl || (p.images && p.images[0]) || ''), String(p.category || ''), parseInt(p.quantity) || 0,
+                    String(p.status || 'active'), String(p.discountGroup || ''), detailsJson
+                );
             });
+            
             await db.execute({
-                sql: `
-                    INSERT INTO products 
-                    (id, name, sku, price, costPrice, imageUrl, category, quantity, status, discountGroup, details) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `,
-                args: [
-                    String(p.id), p.name, p.sku || '', parseInt(p.price) || 0, parseInt(p.costPrice) || 0,
-                    p.imageUrl || (p.images && p.images[0]) || '', p.category || '', parseInt(p.quantity) || 0,
-                    p.status || 'active', p.discountGroup || '', detailsJson
-                ]
+                sql: `INSERT INTO products (id, name, sku, price, costPrice, imageUrl, category, quantity, status, discountGroup, details) VALUES ${placeholders}`,
+                args: args
             });
         }
         res.json({ success: true, count: products.length });
     } catch (e) {
+        console.error('[IMPORT ERROR]', e.message);
         res.status(500).json({ error: e.message });
     }
 });

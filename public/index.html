@@ -250,8 +250,10 @@ ZIPKHOA3040	Zip khóa	mờ	30x40cm	Túi ZIP	https://content.pancake.vn/2-25/2025
             </div>
 
             <div id="excelStep2" style="display:none;">
-                <p style="font-size:0.9rem; color:#666;">Ghép nối các cột trên file Excel của bạn vào hệ thống (Mapping).</p>
-                <div class="mapping-box" id="mappingBox"></div>
+                <p style="font-size:0.95rem; color:#1e293b; margin-bottom: 10px;">✅ Đã đọc thành công <strong id="importCount" style="color:#10b981;">0</strong> sản phẩm từ file Excel.</p>
+                <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af;">
+                    ℹ️ Hệ thống sẽ tự động tách Giá và Điều kiện mua sỉ (Ví dụ: <strong>8000 >= 10</strong> sẽ tách thành 8000đ khi mua từ 10).
+                </div>
                 
                 <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;">
                     <button class="btn btn-secondary" onclick="document.getElementById('excelStep1').style.display='block'; document.getElementById('excelStep2').style.display='none';">Quay lại</button>
@@ -750,42 +752,14 @@ ZIPKHOA3040	Zip khóa	mờ	30x40cm	Túi ZIP	https://content.pancake.vn/2-25/2025
             if(!raw) return alert("Vui lòng dán dữ liệu!");
             const lines = raw.split('\n');
             const delimiter = lines[0].includes('\t') ? '\t' : (lines[0].includes(',') ? ',' : '|');
-            excelHeaders = lines[0].split(delimiter).map(s => s.trim().replace(/^"|"$/g, ''));
             excelRows = [];
-            for(let i=1; i<lines.length; i++) {
+            for(let i=1; i<lines.length; i++) { // Bỏ qua dòng tiêu đề
                 if(!lines[i].trim()) continue;
                 excelRows.push(lines[i].split(delimiter).map(s => s.trim().replace(/^"|"$/g, '')));
             }
-            renderMappingUI();
+            document.getElementById('importCount').innerText = excelRows.length;
             document.getElementById('excelStep1').style.display = 'none';
             document.getElementById('excelStep2').style.display = 'block';
-        }
-
-        function renderMappingUI() {
-            const box = document.getElementById('mappingBox');
-            const getOpts = (match) => excelHeaders.map((h, i) => `<option value="${i}" ${h.toLowerCase().includes(match)?'selected':''}>${h}</option>`).join('');
-            
-            let html = `
-                <div class="map-title">1. Cột Thông Tin Cơ Bản</div>
-                <div class="map-row"><label>Tên Sản Phẩm (*):</label><select id="map_name">${getOpts('tên')}</select></div>
-                <div class="map-row"><label>Danh mục SP:</label><select id="map_cat"><option value="-1">-- Mặc định --</option>${getOpts('danh mục')}</select></div>
-                <div class="map-row"><label>Mã SKU Phân loại:</label><select id="map_sku"><option value="-1">-- Tự sinh --</option>${getOpts('mã')}</select></div>
-                <div class="map-row"><label>Link Ảnh:</label><select id="map_img"><option value="-1">-- Bỏ qua --</option>${getOpts('ảnh')}</select></div>
-                
-                <div class="map-title">2. Cột Phân Loại (Biến thể)</div>
-                <div style="font-size:0.85rem; margin-bottom:5px;">Tick chọn các cột thuộc tính (Màu, Size, Loại...):</div>
-                <div style="display:flex; flex-wrap:wrap; gap:10px;" id="map_options_box">
-                    ${excelHeaders.map((h,i) => `<label><input type="checkbox" value="${i}" ${(h.toLowerCase().includes('phân loại')||h.toLowerCase().includes('màu')||h.toLowerCase().includes('size'))?'checked':''}> ${h}</label>`).join('')}
-                </div>
-
-                <div class="map-title">3. Bảng Giá</div>
-                <div id="map_tiers_box">
-                    <div class="map-row"><label>Giá Lẻ (Mua > 0):</label><select class="map_tier_sel" data-cond="0">${getOpts('lẻ')}</select></div>
-                    <div class="map-row"><label>Giá Sỉ 1 (Mua >= 10):</label><select class="map_tier_sel" data-cond="10">${getOpts('sỉ 1')}</select></div>
-                    <div class="map-row"><label>Giá Sỉ 2 (Mua >= 100):</label><select class="map_tier_sel" data-cond="100">${getOpts('sỉ 2')}</select></div>
-                </div>
-            `;
-            box.innerHTML = html;
         }
 
         function executeExcelImport(appendMode) {
@@ -793,81 +767,115 @@ ZIPKHOA3040	Zip khóa	mờ	30x40cm	Túi ZIP	https://content.pancake.vn/2-25/2025
             
             if(!appendMode) {
                 products = [];
-                selections = {};
             }
-            
-            const nameIdx = parseInt(document.getElementById('map_name').value);
-            const catIdx = parseInt(document.getElementById('map_cat').value);
-            const skuIdx = parseInt(document.getElementById('map_sku').value);
-            const imgIdx = parseInt(document.getElementById('map_img').value);
-            const optBoxes = Array.from(document.querySelectorAll('#map_options_box input:checked')).map(x=>parseInt(x.value));
-            const tierSels = Array.from(document.querySelectorAll('.map_tier_sel'));
 
-            let groups = {};
-            excelRows.forEach(r => { const pName = r[nameIdx]; if(pName && pName.trim()) { if(!groups[pName]) groups[pName]=[]; groups[pName].push(r); } });
+            const parseMoneyNumber = (str) => {
+                if(!str) return 0;
+                let num = parseInt(str.replace(/\\D/g, ''));
+                return isNaN(num) ? 0 : num;
+            };
 
-            for(let pName in groups) {
-                const rG = groups[pName];
-                const cat = (catIdx>=0 && rG[0][catIdx]) ? rG[0][catIdx] : 'Chưa phân loại';
-                const pId = Date.now() + Math.floor(Math.random()*10000);
-                
-                let opts = [];
-                optBoxes.forEach((idx, n) => {
-                    let v = new Set(); rG.forEach(r=>{if(r[idx] && r[idx].trim()) v.add(r[idx].trim())});
-                    if(v.size>0) opts.push({id:'opt_'+n, name:excelHeaders[idx], values:Array.from(v), hidden:false});
-                });
+            excelRows.forEach((r, idx) => {
+                const sku = String(r[0] || '').trim();
+                const pName = String(r[1] || '').trim();
+                if(!pName) return; // Skip if no name
 
-                let tiers = tierSels.map((sel, i) => ({
-                    id: pId+'_t'+i, name: i==0?'Giá Bán Lẻ':`Giá Sỉ ${i}`, condition: parseInt(sel.getAttribute('data-cond')), price: 0, _col: parseInt(sel.value)
-                }));
+                const description = String(r[2] || '').trim();
+                const imageStr = String(r[3] || '').trim();
+                const images = imageStr ? imageStr.split(',').map(x=>x.trim()).filter(x=>x) : [];
+                const cat = String(r[4] || '').trim() || 'Chưa phân loại';
+                const weight = String(r[5] || '').trim() || '0';
+                const costPrice = parseMoneyNumber(r[6]);
+                const retailPrice = parseMoneyNumber(r[7]);
 
-                let product = { id: pId, name: pName, category: cat, images: [imgIdx>=0?rG[0][imgIdx]:''], description: "", sku: pName, unit: "sp", weight: "0", pricingTiers: tiers, options: opts, variants: [] };
-                
-                rG.forEach((r, idx) => {
-                    let optionValues = {};
-                    let labelArr = [];
-                    optBoxes.forEach((optIdx, n) => {
-                        if(r[optIdx] && r[optIdx].trim()) {
-                            optionValues['opt_'+n] = r[optIdx].trim();
-                            labelArr.push(r[optIdx].trim());
+                // Smart Parser: Đọc giá sỉ từ cột 8 trở đi
+                let tiers = [];
+                for (let i = 8; i < r.length; i++) {
+                    let cell = String(r[i] || '').trim();
+                    if (!cell) continue;
+
+                    let tPrice = 0, tCond = 1;
+                    if (cell.includes('>=')) {
+                        let parts = cell.split('>=');
+                        tPrice = parseMoneyNumber(parts[0]);
+                        tCond = parseMoneyNumber(parts[1]);
+                    } else if (cell.includes('>')) {
+                        let parts = cell.split('>');
+                        tPrice = parseMoneyNumber(parts[0]);
+                        tCond = parseMoneyNumber(parts[1]) + 1;
+                    } else if (cell.includes('-')) {
+                        let parts = cell.split('-');
+                        tPrice = parseMoneyNumber(parts[0]);
+                        tCond = parseMoneyNumber(parts[1]);
+                    } else {
+                        // Nếu chỉ là một con số, có thể ô tiếp theo là Điều kiện
+                        tPrice = parseMoneyNumber(cell);
+                        let nextCell = String(r[i+1] || '').trim();
+                        if (nextCell && !nextCell.includes('>') && !nextCell.includes('-')) {
+                            tCond = parseMoneyNumber(nextCell);
+                            i++; // Skip the condition cell
                         }
-                    });
+                    }
 
-                    let prices = {};
-                    tiers.forEach(t => { if(t._col>=0) prices[t.id] = parseMoney(r[t._col]); });
-
-                    product.variants.push({
-                        id: 'v_' + pId + '_' + idx,
-                        label: labelArr.length > 0 ? labelArr.join(' - ') : 'Mặc định',
-                        optionValues: optionValues,
-                        sku: (skuIdx>=0 && r[skuIdx]) ? r[skuIdx] : (pName+'-'+idx),
-                        weight: "0",
-                        stock: Math.floor(Math.random()*500)+10,
-                        image: (imgIdx>=0 && r[imgIdx]) ? r[imgIdx] : '',
-                        prices: prices
-                    });
-                });
-
-                if(product.variants.length > 0) {
-                    tiers.forEach(t => { t.price = product.variants[0].prices[t.id]; });
-                    // Auto-select first
-                    selections[pId] = {};
-                    for(let k in product.variants[0].optionValues) {
-                        selections[pId][k] = product.variants[0].optionValues[k];
+                    if (tPrice > 0) {
+                        tiers.push({
+                            id: 't' + tiers.length,
+                            name: 'Giá Sỉ ' + (tiers.length + 1),
+                            price: tPrice,
+                            condition: tCond || 1
+                        });
                     }
                 }
+
+                const pId = Date.now() + Math.floor(Math.random()*10000) + idx;
                 
-                // Tránh trùng nếu append mode
+                let product = { 
+                    id: pId, 
+                    name: pName, 
+                    category: cat, 
+                    images: images, 
+                    description: description, 
+                    sku: sku || pName, 
+                    unit: "sp", 
+                    weight: weight, 
+                    costPrice: costPrice,
+                    price: retailPrice,
+                    pricingTiers: tiers, 
+                    options: [], 
+                    variants: [] 
+                };
+                
                 const existingProdIdx = products.findIndex(x=>x.name.toLowerCase() === pName.toLowerCase());
                 if(appendMode && existingProdIdx > -1) {
-                    // Update/Merge? Or just replace the old one. We choose to replace the old one if it has same name.
                     products[existingProdIdx] = product;
                 } else {
                     products.push(product);
                 }
-            }
-            saveData(); renderUI(); closeModal('excelModal'); 
-            alert(appendMode ? "Đã nối tiếp/Cập nhật dữ liệu thành công!" : "Đã Import đè thành công!");
+            });
+
+            document.getElementById('excelStep2').innerHTML = `<p style="text-align:center; padding: 20px;">⏳ Đang lưu dữ liệu lên hệ thống, vui lòng không đóng trang...</p>`;
+            
+            // Call saveData logic and render
+            saveData().then(() => {
+                renderUI(); 
+                closeModal('excelModal'); 
+                alert(appendMode ? "Đã nối tiếp/Cập nhật dữ liệu thành công!" : "Đã Import đè thành công!");
+                
+                // Khôi phục HTML của excelStep2 cho lần dùng sau
+                document.getElementById('excelStep2').innerHTML = `
+                <p style="font-size:0.95rem; color:#1e293b; margin-bottom: 10px;">✅ Đã đọc thành công <strong id="importCount" style="color:#10b981;">0</strong> sản phẩm từ file Excel.</p>
+                <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af;">
+                    ℹ️ Hệ thống sẽ tự động tách Giá và Điều kiện mua sỉ (Ví dụ: <strong>8000 >= 10</strong> sẽ tách thành 8000đ khi mua từ 10).
+                </div>
+                <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="document.getElementById('excelStep1').style.display='block'; document.getElementById('excelStep2').style.display='none';">Quay lại</button>
+                    <button class="btn btn-primary" style="background:#10b981; flex:2;" onclick="executeExcelImport(true)">Thêm (Nối tiếp dữ liệu)</button>
+                    <button class="btn btn-primary" style="background:#ef4444; flex:1;" onclick="executeExcelImport(false)">Import (Ghi Đè Xoá Cũ)</button>
+                </div>`;
+            }).catch(e => {
+                alert("Lỗi khi import: " + e.message);
+                closeModal('excelModal');
+            });
         }
 
         // --- VIEW LOGIC ---
