@@ -890,10 +890,35 @@ ZIPKHOA3040	Zip khóa	mờ	30x40cm	Túi ZIP	https://content.pancake.vn/2-25/2025
                 }
             });
 
-            document.getElementById('excelStep2').innerHTML = `<p style="text-align:center; padding: 20px;">⏳ Đang lưu dữ liệu lên hệ thống, vui lòng không đóng trang...</p>`;
+            document.getElementById('excelStep2').innerHTML = `
+                <div style="text-align:center; padding: 20px;">
+                    <p id="importProgressText" style="margin-bottom:10px; font-weight:bold; color:#1e3a8a;">⏳ Đang chuẩn bị lưu dữ liệu...</p>
+                    <div style="width:100%; background:#e2e8f0; border-radius:10px; height:20px; overflow:hidden;">
+                        <div id="importProgressBar" style="width:0%; height:100%; background:#10b981; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+            `;
             
-            // Call saveData logic and render
-            saveData().then(() => {
+            const CHUNK_SIZE = 50; 
+            let isFirst = !appendMode; // Xóa DB ở chunk đầu tiên nếu chọn Ghi đè
+
+            async function uploadChunks() {
+                for (let i = 0; i < products.length; i += CHUNK_SIZE) {
+                    const chunk = products.slice(i, i + CHUNK_SIZE);
+                    let current = Math.min(i + CHUNK_SIZE, products.length);
+                    let percent = Math.floor((current / products.length) * 100);
+                    
+                    document.getElementById('importProgressText').innerHTML = `⏳ Đang đẩy lên máy chủ: <strong>${current} / ${products.length}</strong> sản phẩm...`;
+                    document.getElementById('importProgressBar').style.width = percent + '%';
+                    
+                    await fetchAPI('/api/products/import', {
+                        method: 'POST',
+                        body: { products: chunk, clearFirst: (i === 0) ? isFirst : false }
+                    });
+                }
+            }
+
+            uploadChunks().then(() => {
                 renderUI(); 
                 closeModal('excelModal'); 
                 alert(appendMode ? "Đã nối tiếp/Cập nhật dữ liệu thành công!" : "Đã Import đè thành công!");

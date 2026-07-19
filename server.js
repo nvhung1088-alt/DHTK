@@ -504,11 +504,13 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
 
 // 8. IMPORT PRODUCTS FROM EXCEL DATA (ADMIN ONLY)
 app.post('/api/products/import', authenticateToken, async (req, res) => {
-    const { products } = req.body;
+    const { products, clearFirst } = req.body;
     if (!Array.isArray(products)) return res.status(400).json({ error: 'Invalid products array' });
 
     try {
-        await db.execute('DELETE FROM products');
+        if (clearFirst !== false) {
+            await db.execute('DELETE FROM products');
+        }
 
         const CHUNK_SIZE = 500;
         for (let i = 0; i < products.length; i += CHUNK_SIZE) {
