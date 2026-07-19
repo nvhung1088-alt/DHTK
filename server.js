@@ -533,11 +533,29 @@ app.post('/api/products/import', authenticateToken, async (req, res) => {
                     ]
                 };
             });
-            await db.executeBatch(stmts);
+            
+            const batchResult = await db.executeBatch(stmts);
+            // Check for errors in the batch result
+            if (batchResult.results) {
+                for (let r of batchResult.results) {
+                    if (r.type === 'error') {
+                        throw new Error("Turso SQL Error: " + r.error.message);
+                    }
+                }
+            }
         }
         res.json({ success: true, count: products.length });
     } catch (e) {
         console.error('[IMPORT ERROR]', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/debug-count', async (req, res) => {
+    try {
+        const result = await db.execute('SELECT COUNT(*) as c FROM products');
+        res.json({ count: result.rows[0].c });
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });

@@ -915,6 +915,9 @@ ZIPKHOA3040	Zip khóa	mờ	30x40cm	Túi ZIP	https://content.pancake.vn/2-25/2025
                         method: 'POST',
                         body: { products: chunk, clearFirst: (i === 0) ? isFirst : false }
                     });
+                    
+                    // Thêm delay 100ms để tránh hammer server Vercel quá nhanh
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
             }
 
