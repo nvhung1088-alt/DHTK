@@ -816,6 +816,9 @@ async function performPosSync(posCredentials) {
     const matchedProducts = [];
     const unmatchedProducts = [];
 
+    // Collect all updates, then batch execute in 1 round-trip to DB
+    const batchStmts = [];
+
     for (const localProduct of dbProducts) {
         let details = {};
         try {
@@ -891,11 +894,20 @@ async function performPosSync(posCredentials) {
 
         if (isUpdated) {
             details.variants = variants;
-            await db.execute({
+            batchStmts.push({
                 sql: 'UPDATE products SET quantity = ?, details = ? WHERE id = ?',
                 args: [productQuantitySum, JSON.stringify(details), localProduct.id]
             });
         }
+    }
+
+    // Execute all updates in a single batch (1 round-trip instead of N)
+    if (batchStmts.length > 0) {
+        const BATCH_CHUNK = 200; // Turso recommends < 1000 per batch
+        for (let i = 0; i < batchStmts.length; i += BATCH_CHUNK) {
+            await db.executeBatch(batchStmts.slice(i, i + BATCH_CHUNK));
+        }
+        console.log(`[POS SYNC] Batch updated ${batchStmts.length} products in DB.`);
     }
 
     await db.execute({
@@ -906,8 +918,9 @@ async function performPosSync(posCredentials) {
     return {
         totalPosProducts: allPosProducts.length,
         matchedCount: updateCount,
-        matchedProducts,
-        unmatchedProducts
+        // Only return changed products (max 100) to avoid huge payload crashing the browser
+        matchedProducts: matchedProducts.filter(p => p.changed).slice(0, 100),
+        unmatchedProducts: unmatchedProducts.slice(0, 50)
     };
 }
 

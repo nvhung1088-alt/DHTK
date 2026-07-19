@@ -1719,56 +1719,67 @@
             const btn = document.getElementById('posSyncBtn');
             btn.disabled = true;
             btn.textContent = '⏳ Đang đồng bộ...';
-            document.getElementById('posSyncLog').innerHTML = '';
-            document.getElementById('posSyncLog').style.display = 'block';
+            const logEl = document.getElementById('posSyncLog');
+            logEl.innerHTML = '';
+            logEl.style.display = 'block';
 
-            posLog('═══════════════════════════════════', 'header');
-            posLog('  ĐỒNG BỘ TỒN KHO — PANCAKE POS', 'header');
-            posLog('═══════════════════════════════════', 'header');
-            posLog('Yêu cầu đồng bộ đang gửi lên máy chủ...', 'info');
+            // Use array builder to avoid O(N^2) DOM thrashing
+            const logLines = [];
+            const appendLog = (msg, type = 'info') => {
+                const colors = { info: '#94a3b8', success: '#34d399', error: '#f87171', warn: '#fbbf24', header: '#60a5fa' };
+                const color = colors[type] || colors.info;
+                const time = new Date().toLocaleTimeString('vi-VN');
+                logLines.push(`<div style="color:${color};"><span style="color:#475569;">[${time}]</span> ${msg}</div>`);
+            };
+            const flushLog = () => { logEl.innerHTML = logLines.join(''); logEl.scrollTop = logEl.scrollHeight; };
+
+            appendLog('═══════════════════════════════════', 'header');
+            appendLog('  ĐỒNG BỘ TỒN KHO — PANCAKE POS', 'header');
+            appendLog('═══════════════════════════════════', 'header');
+            appendLog('Yêu cầu đồng bộ đang gửi lên máy chủ...', 'info');
+            flushLog();
 
             try {
                 const res = await fetchAPI('/api/pos/sync');
                 if (res.success) {
-                    posLog(`✓ Kết nối thành công! Tìm thấy ${res.totalPosProducts} sản phẩm trên Pancake POS.`, 'success');
-                    posLog(`✓ Đã khớp và cập nhật tồn kho cho: ${res.matchedCount} biến thể.`, 'success');
+                    appendLog(`✓ Kết nối thành công! Tìm thấy ${res.totalPosProducts} sản phẩm trên Pancake POS.`, 'success');
+                    appendLog(`✓ Đã cập nhật tồn kho cho: ${res.matchedCount} biến thể có thay đổi.`, 'success');
                     
-                    // In chi tiết biến thể khớp thành công
+                    // Only show changed items
                     if (res.matchedProducts && res.matchedProducts.length > 0) {
-                        posLog('► Chi tiết đối soát mã SKU khớp:', 'info');
+                        appendLog(`► Chi tiết ${res.matchedProducts.length} biến thể có tồn kho thay đổi:`, 'info');
                         res.matchedProducts.forEach(item => {
-                            if (item.changed) {
-                                posLog(`  ✓ [${item.sku}] "${item.name}": Tồn kho cũ ${item.oldQty} → <span style="color:#34d399;font-weight:bold;">${item.qty}</span> (Đã cập nhật)`, 'success');
-                            } else {
-                                posLog(`  • [${item.sku}] "${item.name}": Tồn kho giữ nguyên ${item.qty}`, 'info');
-                            }
+                            appendLog(`  ✓ [${item.sku}] "${item.name}": ${item.oldQty} → <span style="color:#34d399;font-weight:bold;">${item.qty}</span>`, 'success');
                         });
+                        if (res.matchedCount > res.matchedProducts.length) {
+                            appendLog(`  ... và ${res.matchedCount - res.matchedProducts.length} biến thể khác (bị giới hạn hiển thị)`, 'info');
+                        }
+                    } else {
+                        appendLog('► Không có biến thể nào thay đổi tồn kho.', 'info');
                     }
 
-                    // In chi tiết biến thể không khớp
                     if (res.unmatchedProducts && res.unmatchedProducts.length > 0) {
-                        posLog('⚠️ Một số SKU nội bộ không khớp được trên Pancake POS:', 'warn');
+                        appendLog(`⚠️ ${res.unmatchedProducts.length} SKU nội bộ không khớp được trên POS (hiển thị tối đa 50):`, 'warn');
                         res.unmatchedProducts.forEach(item => {
-                            posLog(`  ❌ [${item.sku}] "${item.name}" (${item.reason})`, 'warn');
+                            appendLog(`  ❌ [${item.sku}] "${item.name}"`, 'warn');
                         });
-                        posLog('💡 Mẹo: Hãy kiểm tra mã SKU trên Website và Pancake POS xem đã khớp nhau chưa.', 'warn');
                     }
 
-                    // Cập nhật lại danh sách sản phẩm cục bộ từ Backend
+                    // Refresh product list from server
                     const productsRes = await fetchAPI('/api/products');
                     products = productsRes;
                     renderProducts();
 
-                    posLog('═══════════════════════════════════', 'header');
-                    posLog(`  HOÀN THÀNH ĐỒNG BỘ TỒN KHO`, 'header');
-                    posLog(`  ✅ Đã cập nhật: ${res.matchedCount} biến thể`, 'success');
-                    posLog('═══════════════════════════════════', 'header');
+                    appendLog('═══════════════════════════════════', 'header');
+                    appendLog(`  ✅ HOÀN THÀNH — Cập nhật ${res.matchedCount} biến thể`, 'success');
+                    appendLog('═══════════════════════════════════', 'header');
                 } else {
                     throw new Error(res.error || 'Đồng bộ thất bại');
                 }
             } catch (err) {
-                posLog(`❌ LỖI: ${err.message}`, 'error');
+                appendLog(`❌ LỖI: ${err.message}`, 'error');
             } finally {
+                flushLog();
                 btn.disabled = false;
                 btn.textContent = '🚀 Đồng bộ lại';
                 loadPosSyncHistory();
