@@ -448,7 +448,8 @@ app.get('/api/products', async (req, res) => {
                 pricingTiers: details.pricingTiers || [],
                 options: details.options || [],
                 variants: details.variants || [],
-                description: details.description || ''
+                description: details.description || '',
+                weight: details.weight || '0'
             };
         });
         
