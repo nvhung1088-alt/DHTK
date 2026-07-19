@@ -90,12 +90,11 @@ const db = {
 
 // --- DATABASE INITIALIZATION WITH TURSO ---
 async function initDB() {
-    // Trên Vercel, database đã được migrate cấu trúc và dữ liệu đầy đủ lên Turso Cloud.
-    // Bỏ qua tạo bảng & seeding để tránh lỗi và tăng tốc độ cold start của Serverless.
-    if (process.env.VERCEL) {
-        console.log('[DB] Running on Vercel, skipping table creation & seeding.');
-        return;
-    }
+    // Xóa chặn initDB trên Vercel để khởi tạo DB mới cho thohong
+    // if (process.env.VERCEL) {
+    //     console.log('[DB] Running on Vercel, skipping table creation & seeding.');
+    //     return;
+    // }
 
     // Create Tables
     await db.execute(`
