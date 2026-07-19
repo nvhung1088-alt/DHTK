@@ -845,6 +845,8 @@
                 return isNaN(num) ? 0 : num;
             };
 
+            const normalizeStr = (s) => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
             let map = {
                 sku: parseInt(document.getElementById('map_sku').value),
                 name: parseInt(document.getElementById('map_name').value),
