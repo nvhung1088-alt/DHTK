@@ -731,7 +731,7 @@
             document.getElementById('excelModal').classList.add('active');
         }
 
-        function parseCSV(raw, delimiter) {
+        function parseCSV(raw, delimiter = '\t') {
             let rows = [];
             let row = [];
             let cell = '';
@@ -751,7 +751,7 @@
                 } else if ((c === '\n' || c === '\r') && !inQuotes) {
                     if (c === '\r' && raw[i + 1] === '\n') i++;
                     row.push(cell.trim());
-                    if (row.some(x => x)) rows.push(row); // bỏ qua dòng trống
+                    if (row.some(x => x)) rows.push(row); 
                     row = [];
                     cell = '';
                 } else {
@@ -769,13 +769,12 @@
             const raw = document.getElementById('excelRawData').value.trim();
             if(!raw) return alert("Vui lòng dán dữ liệu!");
             
-            // Tìm delimiter từ dòng đầu tiên
             const firstLine = raw.split('\n')[0];
             const delimiter = firstLine.includes('\t') ? '\t' : (firstLine.includes(',') ? ',' : '|');
             
             const allRows = parseCSV(raw, delimiter);
             
-            // Bỏ qua dòng tiêu đề (dòng 0)
+            excelHeader = allRows[0].map(h => String(h).trim().toLowerCase());
             excelRows = allRows.slice(1);
             
             document.getElementById('importCount').innerText = excelRows.length;
@@ -792,24 +791,36 @@
 
             const parseMoneyNumber = (str) => {
                 if(!str) return 0;
-                let num = parseInt(str.replace(/\\D/g, ''));
+                let num = parseInt(str.replace(/\D/g, ''));
                 return isNaN(num) ? 0 : num;
             };
 
+            let map = { sku: -1, name: -1, desc: -1, image: -1, cat: -1, weight: -1, retail: -1, cost: -1 };
+            excelHeader.forEach((h, i) => {
+                if(h.includes('mã')) map.sku = i;
+                else if(h.includes('tên')) map.name = i;
+                else if(h.includes('ảnh') || h.includes('hình')) map.image = i;
+                else if(h.includes('danh mục') || h.includes('nhóm')) map.cat = i;
+                else if(h.includes('trọng lượng') || h.includes('cân nặng')) map.weight = i;
+                else if(h.includes('vốn') || h.includes('nhập')) map.cost = i;
+                else if(h.includes('bán lẻ') || h.includes('giá lẻ')) map.retail = i;
+                else if(h.includes('mô tả') && map.desc === -1) map.desc = i; // only first match for desc
+            });
+
             excelRows.forEach((r, idx) => {
-                const sku = String(r[0] || '').trim();
-                const pName = String(r[1] || '').trim();
-                if(!pName) return; // Skip if no name
+                const sku = map.sku !== -1 ? String(r[map.sku] || '').trim() : `SP${Date.now()}${idx}`;
+                const pName = map.name !== -1 ? String(r[map.name] || '').trim() : '';
+                if(!pName) return;
 
-                const description = String(r[2] || '').trim();
-                const imageStr = String(r[3] || '').trim();
+                const description = map.desc !== -1 ? String(r[map.desc] || '').trim() : '';
+                const imageStr = map.image !== -1 ? String(r[map.image] || '').trim() : '';
                 const images = imageStr ? imageStr.split(/[\n,]+/).map(x=>x.trim()).filter(x=>x) : [];
-                const cat = String(r[4] || '').trim() || 'Chưa phân loại';
-                const weight = String(r[5] || '').trim() || '0';
-                const costPrice = parseMoneyNumber(r[6]);
-                const retailPrice = parseMoneyNumber(r[7]);
+                const cat = map.cat !== -1 ? String(r[map.cat] || '').trim() : 'Chưa phân loại';
+                const weight = map.weight !== -1 ? String(r[map.weight] || '').trim() : '0';
+                
+                const costPrice = map.cost !== -1 ? parseMoneyNumber(r[map.cost]) : 0;
+                const retailPrice = map.retail !== -1 ? parseMoneyNumber(r[map.retail]) : 0;
 
-                // Khởi tạo mảng Tiers, luôn có Giá Bán Lẻ ở vị trí đầu tiên
                 let tiers = [];
                 if (retailPrice > 0 || costPrice > 0) {
                     tiers.push({
@@ -820,12 +831,16 @@
                     });
                 }
 
-                // Smart Parser: Đọc giá sỉ từ cột 8 trở đi
-                for (let i = 8; i < r.length; i++) {
-                    let cell = String(r[i] || '').trim();
-                    if (!cell) continue;
+                let tierIndex = 1;
+                excelHeader.forEach((h, i) => {
+                    if (Object.values(map).includes(i)) return; // Skip mapped columns
+                    if (!h.includes('sỉ') && !h.includes('giá')) return; // Check if it looks like a wholesale column
 
-                    let tPrice = 0, tCond = 1;
+                    let cell = String(r[i] || '').trim();
+                    if (!cell) return;
+
+                    let tPrice = 0, tCond = tierIndex * 10;
+                    
                     if (cell.includes('>=')) {
                         let parts = cell.split('>=');
                         tPrice = parseMoneyNumber(parts[0]);
@@ -839,25 +854,8 @@
                         tPrice = parseMoneyNumber(parts[0]);
                         tCond = parseMoneyNumber(parts[1]);
                     } else {
-                        // Nếu chỉ là một con số, có thể ô tiếp theo là Điều kiện
                         tPrice = parseMoneyNumber(cell);
-                        let nextCell = String(r[i+1] || '').trim();
-                        if (nextCell) {
-                            let parsedCond = 0;
-                            if (nextCell.includes('>=')) parsedCond = parseMoneyNumber(nextCell.split('>=')[1]);
-                            else if (nextCell.includes('>')) parsedCond = parseMoneyNumber(nextCell.split('>')[1]) + 1;
-                            else if (nextCell.includes('-')) parsedCond = parseMoneyNumber(nextCell.split('-')[1]);
-                            else parsedCond = parseMoneyNumber(nextCell);
-                            
-                            // Nếu nextCell rõ ràng là một chuỗi điều kiện (có chứa dấu >, -)
-                            // HOẶC giá trị parsedCond nhỏ (ví dụ <= 1000) thì đó là điều kiện
-                            if (nextCell.match(/[>\-]/) || (parsedCond > 0 && parsedCond <= 1000)) {
-                                tCond = parsedCond;
-                                i++; // Skip the condition cell
-                            }
-                        }
                     }
-
                     if (tPrice > 0) {
                         tiers.push({
                             id: 't' + tiers.length,
