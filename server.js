@@ -748,7 +748,7 @@ async function pushOrderToPancake(customerInfo, processedItems) {
 
         const orderPayload = {
             order: {
-                source: 'Web Thỏ Hồng',
+                source: process.env.PANCAKE_ORDER_SOURCE || 'ĐHTK Store',
                 warehouse_id: warehouseId || undefined,
                 customer: {
                     name: customerInfo.name,
