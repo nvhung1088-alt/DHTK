@@ -795,16 +795,19 @@
                 return isNaN(num) ? 0 : num;
             };
 
+            const normalizeStr = (s) => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
             let map = { sku: -1, name: -1, desc: -1, image: -1, cat: -1, weight: -1, retail: -1, cost: -1 };
-            excelHeader.forEach((h, i) => {
-                if(h.includes('mã')) map.sku = i;
-                else if(h.includes('tên')) map.name = i;
-                else if(h.includes('ảnh') || h.includes('hình')) map.image = i;
-                else if(h.includes('danh mục') || h.includes('nhóm')) map.cat = i;
-                else if(h.includes('trọng lượng') || h.includes('cân nặng')) map.weight = i;
-                else if(h.includes('vốn') || h.includes('nhập')) map.cost = i;
-                else if(h.includes('bán lẻ') || h.includes('giá lẻ')) map.retail = i;
-                else if(h.includes('mô tả') && map.desc === -1) map.desc = i; // only first match for desc
+            excelHeader.forEach((origH, i) => {
+                let h = normalizeStr(origH);
+                if(h.includes('ma')) map.sku = i;
+                else if(h.includes('ten')) map.name = i;
+                else if(h.includes('anh') || h.includes('hinh') || h.includes('image')) map.image = i;
+                else if(h.includes('danh muc') || h.includes('nhom')) map.cat = i;
+                else if(h.includes('trong luong') || h.includes('can nang')) map.weight = i;
+                else if(h.includes('von') || h.includes('nhap')) map.cost = i;
+                else if(h.includes('ban le') || h.includes('gia le')) map.retail = i;
+                else if(h.includes('mo ta') && map.desc === -1) map.desc = i; 
             });
 
             excelRows.forEach((r, idx) => {
