@@ -982,7 +982,7 @@
                     optionValues: {},
                     sku: sku || pName,
                     weight: weight,
-                    stock: 9999,
+                    stock: 0,
                     prices: prices,
                     image: images.length > 0 ? images[0] : ''
                 };
@@ -1594,8 +1594,12 @@
                             <div style="font-weight:600; font-size:0.95rem;">${p.name} <span style="font-size:0.75rem; color:#888;">(${v.sku})</span></div>
                             <div style="font-size:0.85rem; color:#64748b;">${v.label}</div>
                             <div style="font-size:0.85rem; margin-top:4px;">Giá: <span style="color:#ef4444; font-weight:bold;">${formatMoney(appliedPrice)}</span> <span style="background:#dcfce7; color:#166534; font-size:0.7rem; padding:2px 6px; border-radius:10px;">${tier.name}</span></div>
-                            <div style="display:flex; justify-content:space-between; margin-top:5px; align-items:center;">
-                                <strong style="font-size:0.9rem;">SL: ${item.qty}</strong>
+                            <div style="display:flex; justify-content:space-between; margin-top:8px; align-items:center;">
+                                <div style="display:flex; align-items:center; gap:5px;">
+                                    <button onclick="changeCartQty(${index}, -1)" style="width:24px; height:24px; border:1px solid #ccc; background:#fff; border-radius:4px; cursor:pointer; font-size:14px;">-</button>
+                                    <input type="number" id="cart-qty-${index}" value="${item.qty}" min="1" max="${v.stock}" onchange="updateCartItemQty(${index}, this.value)" style="width:40px; text-align:center; padding:2px; border:1px solid #ccc; border-radius:4px; font-size:0.9rem;">
+                                    <button onclick="changeCartQty(${index}, 1)" style="width:24px; height:24px; border:1px solid #ccc; background:#fff; border-radius:4px; cursor:pointer; font-size:14px;">+</button>
+                                </div>
                                 <button onclick="removeFromCart(${index})" style="color:red; background:none; border:none; cursor:pointer; font-size:0.85rem;">Xóa</button>
                             </div>
                         </div>
@@ -1604,6 +1608,24 @@
             if(cart.length===0) cartItemsEl.innerHTML = '<div style="text-align:center; color:#888;">Giỏ trống</div>';
             document.getElementById('cartCount').innerText = cart.reduce((s, c) => s + c.qty, 0);
             document.getElementById('cartTotalSum').innerText = formatMoney(finalSum);
+        }
+
+        function changeCartQty(i, delta) {
+            updateCartItemQty(i, cart[i].qty + delta);
+        }
+
+        function updateCartItemQty(i, newQty) {
+            newQty = parseInt(newQty);
+            if (isNaN(newQty) || newQty < 1) newQty = 1;
+            const p = products.find(x => x.id === cart[i].productId);
+            const v = p.variants.find(x => x.id === cart[i].variantId);
+            if (newQty > v.stock) {
+                alert(`Sản phẩm này chỉ còn ${v.stock} trong kho!`);
+                newQty = v.stock;
+            }
+            if (newQty < 1) newQty = 1;
+            cart[i].qty = newQty;
+            updateCartUI();
         }
 
         function removeFromCart(i) { cart.splice(i,1); updateCartUI(); }
