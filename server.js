@@ -782,8 +782,11 @@ async function pushOrderToPancake(customerInfo, processedItems) {
             }
         };
 
-        const url = `https://pos.pages.fm/api/v1/shops/${shopId}/orders?api_key=${apiKey}`;
-        console.log(`[PANCAKE ORDER SYNC] Đang đẩy đơn hàng của ${customerInfo.name} sang Pancake POS Shop ${shopId}...`);
+        let url = `https://pos.pages.fm/api/v1/shops/${shopId}/orders?api_key=${apiKey}`;
+        if (warehouseId) {
+            url += `&warehouse_id=${warehouseId}`;
+        }
+        console.log(`[PANCAKE ORDER SYNC] Đang đẩy đơn hàng của ${customerInfo.name} sang Pancake POS Shop ${shopId}... URL: ${url}`);
 
         const resp = await fetch(url, {
             method: 'POST',
