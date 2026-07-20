@@ -706,15 +706,19 @@ app.post('/api/orders', (req, res, next) => {
 
         let posSuccess = false;
         let posOrderId = null;
+        let posErrorMsg = null;
         try {
             // Đẩy đơn hàng sang Pancake POS đồng bộ
             const posResult = await pushOrderToPancake(customerInfo, processedItems);
             if (posResult && posResult.success) {
                 posSuccess = true;
                 posOrderId = posResult.data ? (posResult.data.id || posResult.data.system_id) : null;
+            } else {
+                posErrorMsg = posResult ? (posResult.message || posResult.error || JSON.stringify(posResult)) : "Lỗi không xác định";
             }
         } catch(err) {
             console.error('[PANCAKE SYNC ERROR]', err);
+            posErrorMsg = err.message;
         }
 
         const finalOrderId = Date.now();
@@ -724,6 +728,7 @@ app.post('/api/orders', (req, res, next) => {
             orderId: finalOrderId,
             posSuccess: posSuccess,
             posOrderId: posOrderId,
+            posErrorMsg: posErrorMsg,
             totalAmount,
             totalDiscount,
             telegramSent

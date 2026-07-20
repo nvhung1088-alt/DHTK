@@ -1923,7 +1923,7 @@
                 
                 let posMsg = json.posSuccess 
                     ? '✅ Đơn hàng đã được gửi thành công về hệ thống POS và Telegram!'
-                    : '⚠️ Đơn hàng đã gửi về Telegram (POS đang chờ xử lý).';
+                    : `⚠️ Đơn hàng đã gửi về Telegram (POS báo lỗi: ${json.posErrorMsg || 'Đang chờ xử lý'}).`;
                 
                 alert(`✅ ĐẶT HÀNG THÀNH CÔNG!\n\nMã đơn hàng của bạn: #${json.posOrderId || json.orderId}\n${posMsg}\n\nTổng tiền thanh toán: ${formatMoney(json.totalAmount)}\nChúng tôi sẽ liên hệ bạn sớm nhé!`);
 
