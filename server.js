@@ -600,15 +600,6 @@ app.post('/api/orders', (req, res, next) => {
             }
         });
 
-        const getTierPrice = (originalProduct, totalGroupQty) => {
-            const price = originalProduct.price;
-            if (totalGroupQty >= 100) return Math.round(price * 0.80);
-            if (totalGroupQty >= 50) return Math.round(price * 0.85);
-            if (totalGroupQty >= 20) return Math.round(price * 0.90);
-            if (totalGroupQty >= 10) return Math.round(price * 0.95);
-            return price;
-        };
-
         let totalAmount = 0;
         let originalAmount = 0;
         const processedItems = [];
@@ -617,38 +608,61 @@ app.post('/api/orders', (req, res, next) => {
             const originalProduct = productMap[item.id];
             if (!originalProduct) return;
 
+            let details = {};
+            try { details = JSON.parse(originalProduct.details || '{}'); } catch(e) {}
+
             const group = originalProduct.discountGroup;
             const totalGroupQty = groupQuantities[group] || item.qty;
-            const finalUnitPrice = originalProduct.discountGroup ? getTierPrice(originalProduct, totalGroupQty) : originalProduct.price;
+
+            // Tính Tier áp dụng
+            let appliedTierId = 'retail';
+            if (details.pricingTiers && details.pricingTiers.length > 0) {
+                let appliedTier = details.pricingTiers[0];
+                for (let i = 0; i < details.pricingTiers.length; i++) {
+                    if (totalGroupQty >= details.pricingTiers[i].condition) appliedTier = details.pricingTiers[i];
+                }
+                appliedTierId = appliedTier.id;
+            }
+
+            let posProductId = null;
+            let posVariantId = null;
+            let matchedVar = null;
+
+            if (details.variants && details.variants.length > 0) {
+                matchedVar = details.variants.find(v => String(v.id) === String(item.variantId) || (v.sku && item.sku && (v.sku || '').trim().toUpperCase() === (item.sku || '').trim().toUpperCase()));
+                if (matchedVar) {
+                    posProductId = matchedVar.pos_product_id;
+                    posVariantId = matchedVar.pos_variant_id;
+                }
+            }
+            if (!posProductId) {
+                posProductId = details.pos_product_id;
+                posVariantId = details.pos_variant_id;
+            }
+
+            // Lấy giá từ biến thể
+            let finalUnitPrice = 0;
+            let baseOriginalPrice = 0;
+            
+            if (matchedVar && matchedVar.prices) {
+                finalUnitPrice = Number(matchedVar.prices[appliedTierId] || matchedVar.prices['retail'] || 0);
+                baseOriginalPrice = Number(matchedVar.prices['retail'] || 0);
+            } else {
+                finalUnitPrice = Number(originalProduct.price || 0);
+                baseOriginalPrice = Number(originalProduct.price || 0);
+            }
 
             const itemTotal = finalUnitPrice * item.qty;
-            const itemOriginalTotal = originalProduct.price * item.qty;
+            const itemOriginalTotal = baseOriginalPrice * item.qty;
 
             totalAmount += itemTotal;
             originalAmount += itemOriginalTotal;
 
-            let posProductId = null;
-            let posVariantId = null;
-            try {
-                const details = JSON.parse(originalProduct.details || '{}');
-                if (details.variants && details.variants.length > 0) {
-                    const matchedVar = details.variants.find(v => String(v.id) === String(item.variantId) || (v.sku && item.sku && (v.sku || '').trim().toUpperCase() === (item.sku || '').trim().toUpperCase()));
-                    if (matchedVar) {
-                        posProductId = matchedVar.pos_product_id;
-                        posVariantId = matchedVar.pos_variant_id;
-                    }
-                }
-                if (!posProductId) {
-                    posProductId = details.pos_product_id;
-                    posVariantId = details.pos_variant_id;
-                }
-            } catch(e) {}
-
             processedItems.push({
                 name: originalProduct.name,
-                sku: originalProduct.sku,
+                sku: matchedVar ? matchedVar.sku : originalProduct.sku,
                 qty: item.qty,
-                originalPrice: originalProduct.price,
+                originalPrice: baseOriginalPrice,
                 finalPrice: finalUnitPrice,
                 total: itemTotal,
                 pos_product_id: posProductId,
