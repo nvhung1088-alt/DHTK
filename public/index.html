@@ -1506,12 +1506,7 @@
                         ${optsHtml}
                     </div>
 
-                    <div style="margin-top: 0.5rem;">
-                        <div style="font-weight:600; margin-bottom:0.5rem;">Mô tả sản phẩm:</div>
-                        <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.6; white-space:pre-wrap;" ${editAttr} onblur="updateProductInfo('${p.id}', 'description', this.innerText)">${p.description || "Đang cập nhật mô tả..."}</p>
-                    </div>
-
-                    <div style="display:flex; gap: 1rem; margin-top: auto; align-items:center; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                    <div style="display:flex; gap: 1rem; align-items:center; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 1.5rem 0; margin: 1rem 0;">
                         <div style="display:flex; flex-direction:column;">
                             <label style="font-size:0.8rem; font-weight:600; color:var(--text-muted); margin-bottom:5px;">Số lượng:</label>
                             <input type="number" id="qty-modal-${p.id}" value="1" min="1" style="width: 100px; padding: 0.8rem; border-radius: 8px; border: 2px solid var(--border); font-size:1.1rem; text-align:center;" ${!canBuy?'disabled':''}>
@@ -1519,6 +1514,11 @@
                         <button class="btn btn-primary" style="flex:1; padding: 1.2rem; font-size: 1.2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(59,130,246,0.5);" onclick="addFromModal('${p.id}')" ${!canBuy?'disabled':''}>
                             ${canBuy?'🛒 Thêm vào Giỏ hàng':'Vui lòng chọn Phân loại'}
                         </button>
+                    </div>
+
+                    <div style="margin-top: 0.5rem; margin-bottom: 1.5rem;">
+                        <div style="font-weight:600; margin-bottom:0.5rem;">Mô tả sản phẩm:</div>
+                        <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.6; white-space:pre-wrap;" ${editAttr} onblur="updateProductInfo('${p.id}', 'description', this.innerText)">${p.description || "Đang cập nhật mô tả..."}</p>
                     </div>
                     
                     <div class="admin-only-flex" style="margin-top:1rem; gap:10px;">
