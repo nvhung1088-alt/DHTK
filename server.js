@@ -615,8 +615,10 @@ app.post('/api/orders', (req, res, next) => {
             const totalGroupQty = groupQuantities[group] || item.qty;
 
             // Tính Tier áp dụng
-            let appliedTierId = 'retail';
+            let appliedTierId = null;
+            let baseTierId = null;
             if (details.pricingTiers && details.pricingTiers.length > 0) {
+                baseTierId = details.pricingTiers[0].id;
                 let appliedTier = details.pricingTiers[0];
                 for (let i = 0; i < details.pricingTiers.length; i++) {
                     if (totalGroupQty >= details.pricingTiers[i].condition) appliedTier = details.pricingTiers[i];
@@ -645,8 +647,8 @@ app.post('/api/orders', (req, res, next) => {
             let baseOriginalPrice = 0;
             
             if (matchedVar && matchedVar.prices) {
-                finalUnitPrice = Number(matchedVar.prices[appliedTierId] || matchedVar.prices['retail'] || 0);
-                baseOriginalPrice = Number(matchedVar.prices['retail'] || 0);
+                finalUnitPrice = Number(matchedVar.prices[appliedTierId] || matchedVar.prices[baseTierId] || 0);
+                baseOriginalPrice = Number(matchedVar.prices[baseTierId] || 0);
             } else {
                 finalUnitPrice = Number(originalProduct.price || 0);
                 baseOriginalPrice = Number(originalProduct.price || 0);
@@ -772,9 +774,7 @@ async function pushOrderToPancake(customerInfo, processedItems) {
         const items = processedItems.map(item => {
             const line = {
                 quantity: item.qty,
-                price: item.finalPrice,
-                retail_price: item.finalPrice,
-                is_custom_price: true
+                price: item.finalPrice
             };
             if (item.pos_product_id) line.product_id = item.pos_product_id;
             if (item.pos_variant_id) line.variation_id = item.pos_variant_id;
