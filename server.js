@@ -633,6 +633,9 @@ app.post('/api/orders', (req, res, next) => {
             let posRetailPrice = null;
             if (details.variants && details.variants.length > 0) {
                 matchedVar = details.variants.find(v => String(v.id) === String(item.variantId) || (v.sku && item.sku && (v.sku || '').trim().toUpperCase() === (item.sku || '').trim().toUpperCase()));
+                if (!matchedVar && details.variants.length === 1) {
+                    matchedVar = details.variants[0];
+                }
                 if (matchedVar) {
                     posProductId = matchedVar.pos_product_id;
                     posVariantId = matchedVar.pos_variant_id;
@@ -642,7 +645,9 @@ app.post('/api/orders', (req, res, next) => {
             if (!posProductId) {
                 posProductId = details.pos_product_id;
                 posVariantId = details.pos_variant_id;
-                if (posRetailPrice == null) posRetailPrice = details.pos_retail_price;
+            }
+            if (posRetailPrice == null) {
+                posRetailPrice = details.pos_retail_price || (details.variants && details.variants[0] ? details.variants[0].pos_retail_price : null);
             }
 
             // Lấy giá từ biến thể
@@ -1060,6 +1065,9 @@ async function performPosSync(posCredentials) {
                     }
                 }
             });
+            if (variants.length > 0 && variants[0].pos_retail_price) {
+                details.pos_retail_price = variants[0].pos_retail_price;
+            }
         }
 
         if (isUpdated) {
