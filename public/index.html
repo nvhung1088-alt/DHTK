@@ -339,6 +339,25 @@
         </div>
     </div>
 
+    <!-- Modal Thông Báo Đặt Hàng Thành Công -->
+    <div class="modal-overlay" id="orderSuccessModal" onclick="if(event.target===this) closeModal('orderSuccessModal')">
+        <div style="background:white; width:92%; max-width:480px; border-radius:20px; padding:2rem; position:relative; box-shadow: 0 25px 60px rgba(0,0,0,0.3); text-align:center;">
+            <div style="width:64px; height:64px; background:#dcfce7; color:#166534; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:2rem; margin:0 auto 1rem; box-shadow:0 4px 12px rgba(22,101,52,0.15);">✓</div>
+            <h2 style="font-size:1.4rem; font-weight:800; color:#0f172a; margin-bottom:0.25rem;">Đặt Hàng Thành Công!</h2>
+            <p style="color:#64748b; font-size:0.88rem; margin-bottom:1.25rem;">Cảm ơn quý khách đã tin tưởng và đặt hàng.</p>
+
+            <!-- Box thông tin có thể copy -->
+            <div id="orderSuccessBox" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1.2rem; text-align:left; font-size:0.9rem; line-height:1.6; user-select:text; -webkit-user-select:text; -moz-user-select:text; cursor:text; margin-bottom:1.25rem;">
+                <!-- Content render động -->
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-secondary" style="flex:1; border-radius:10px; padding:0.8rem; font-size:0.95rem;" onclick="copyOrderSuccessText()">📋 Sao chép thông tin</button>
+                <button class="btn btn-primary" style="flex:1; border-radius:10px; padding:0.8rem; font-size:0.95rem; background:#10b981;" onclick="closeModal('orderSuccessModal')">Đã hiểu & Đóng</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Telegram Settings Modal -->
     <div class="modal-overlay" id="telegramModal" onclick="if(event.target===this) closeModal('telegramModal')">
         <div class="admin-modal" style="max-width:500px;">
@@ -1922,13 +1941,45 @@
 
                 btn.style.background = '#10b981';
                 btn.textContent = '✅ Đã gửi đơn thành công!';
-                
-                let posMsg = json.posSuccess 
-                    ? '✅ Đơn hàng đã được gửi thành công về hệ thống POS và Telegram!'
-                    : `⚠️ Đơn hàng đã gửi về Telegram (POS báo lỗi: ${json.posErrorMsg || 'Đang chờ xử lý'}).`;
-                
-                alert(`✅ ĐẶT HÀNG THÀNH CÔNG!\n\nMã đơn hàng của bạn: #${json.posOrderId || json.orderId}\n${posMsg}\n\nTổng tiền thanh toán: ${formatMoney(json.totalAmount)}\nChúng tôi sẽ liên hệ bạn sớm nhé!`);
 
+                const escapeHtml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                
+                let orderSuccessHtml = `
+                    <div style="border-bottom:1px dashed #cbd5e1; padding-bottom:8px; margin-bottom:8px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span style="color:#64748b;">Mã đơn hàng:</span>
+                            <strong style="color:#0f172a;">#${json.posOrderId || json.orderId}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span style="color:#64748b;">Khách hàng:</span>
+                            <strong>${escapeHtml(name)}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="color:#64748b;">Số điện thoại:</span>
+                            <strong>${escapeHtml(phone)}</strong>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; font-size:1rem; margin-bottom:4px;">
+                            <span>📦 <b>Tổng tiền hàng:</b></span>
+                            <strong style="color:#ef4444; font-size:1.1rem;">${formatMoney(json.totalAmount)}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#64748b;">
+                            <span>🚚 <b>Phí vận chuyển:</b></span>
+                            <span style="color:#2563eb; font-weight:600;">Chưa bao gồm (Shop báo sau)</span>
+                        </div>
+                    </div>
+
+                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px; font-size:0.82rem; color:#1e40af; line-height:1.5;">
+                        📢 <b>LƯU Ý QUAN TRỌNG:</b><br>
+                        Số tiền <b>${formatMoney(json.totalAmount)}</b> ở trên <b>mới chỉ là Tổng tiền hàng</b> (chưa bao gồm phí vận chuyển).<br>
+                        Chủ shop sẽ trực tiếp kiểm tra phí vận chuyển tiết kiệm nhất và liên hệ báo lại cho quý khách qua <b>SĐT / Zalo ${escapeHtml(phone)}</b>. Quý khách vui lòng chú ý điện thoại nhé!
+                    </div>
+                `;
+
+                document.getElementById('orderSuccessBox').innerHTML = orderSuccessHtml;
+                document.getElementById('orderSuccessModal').classList.add('active');
 
                 cart = [];
                 updateCartUI();
@@ -1945,6 +1996,29 @@
                 btn.disabled = false;
                 btn.textContent = '✅ Chốt Đơn — Gửi về Telegram';
             }
+        function copyOrderSuccessText() {
+            const box = document.getElementById('orderSuccessBox');
+            if (!box) return;
+            const text = box.innerText;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('📋 Đã sao chép thông tin đơn hàng!');
+                }).catch(() => {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            showToast('📋 Đã sao chép thông tin đơn hàng!');
         }
 
         // =============================================
