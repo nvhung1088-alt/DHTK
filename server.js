@@ -773,29 +773,29 @@ async function pushOrderToPancake(customerInfo, processedItems) {
 
         const apiKey = settings.pos_api_key || process.env.PANCAKE_API_KEY;
         const shopId = settings.pos_shop_id || process.env.PANCAKE_SHOP_ID;
-        const warehouseId = settings.pos_warehouse_id || process.env.PANCAKE_WAREHOUSE_ID;
+        // Fallback ID Kho Thỏ Hồng / ĐHTK mặc định nếu chưa cài đặt
+        const warehouseId = settings.pos_warehouse_id || process.env.PANCAKE_WAREHOUSE_ID || 'dac2f936-28a2-4ac0-b6ba-c3dba5ddf4b1';
 
         if (!apiKey || !shopId) {
             console.log('[PANCAKE ORDER SYNC] Bỏ qua đẩy đơn vì chưa cài đặt pos_api_key hoặc pos_shop_id');
             return;
         }
 
-        // Lấy giá bán lẻ POS cho mỗi sản phẩm (dùng để tính discount)
-        // Nếu đã có pos_retail_price trong DB (sau khi sync) thì dùng luôn
-        // Nếu chưa có thì fallback về originalPrice (giá lẻ web)
         let posOriginalAmount = 0;
         let finalPayAmount = 0;
+        let missingPosItems = [];
 
         const items = processedItems.map(item => {
             const line = {
                 quantity: item.qty
-                // Không gửi price - để POS tự lấy giá bán lẻ của nó
             };
             if (item.pos_product_id) line.product_id = item.pos_product_id;
             if (item.pos_variant_id) line.variation_id = item.pos_variant_id;
             
-            // pos_retail_price: giá bán lẻ thực tế trên POS (lấy từ DB sau Sync)
-            // Nếu chưa có thì dùng originalPrice (giá lẻ web - kém chính xác hơn)
+            if (!item.pos_product_id || !item.pos_variant_id) {
+                missingPosItems.push(item.sku || item.name);
+            }
+
             let posPrice = (item.pos_retail_price != null && item.pos_retail_price > 0) 
                 ? item.pos_retail_price 
                 : item.originalPrice;
@@ -808,7 +808,7 @@ async function pushOrderToPancake(customerInfo, processedItems) {
         const orderPayload = {
             order: {
                 order_sources: process.env.PANCAKE_ORDER_SOURCE || 'ĐHTK Store',
-                warehouse_id: warehouseId || undefined,
+                warehouse_id: warehouseId,
                 bill_full_name: customerInfo.name,
                 bill_phone_number: customerInfo.phone,
                 shipping_address: {
@@ -824,14 +824,11 @@ async function pushOrderToPancake(customerInfo, processedItems) {
         };
 
         console.log('[PANCAKE PRICE DEBUG] posOriginalAmount:', posOriginalAmount, '| finalPayAmount:', finalPayAmount, '| discount:', posOriginalAmount - finalPayAmount);
-        processedItems.forEach(it => {
-            console.log(`  Item: ${it.name} | qty: ${it.qty} | finalPrice: ${it.finalPrice} | pos_retail_price: ${it.pos_retail_price} | pos_product_id: ${it.pos_product_id ? 'OK' : 'MISSING'}`);
-        });
-
-        let url = `https://pos.pages.fm/api/v1/shops/${shopId}/orders?api_key=${apiKey}`;
-        if (warehouseId) {
-            url += `&warehouse_id=${warehouseId}`;
+        if (missingPosItems.length > 0) {
+            console.warn(`[PANCAKE WARN] Các SKU chưa được nối kho POS: ${missingPosItems.join(', ')}. Hãy mở Admin Panel -> bấm 'Đồng bộ Tồn Kho POS'.`);
         }
+
+        let url = `https://pos.pages.fm/api/v1/shops/${shopId}/orders?api_key=${apiKey}&warehouse_id=${warehouseId}`;
         console.log(`[PANCAKE ORDER SYNC] Đang đẩy đơn hàng của ${customerInfo.name} sang Pancake POS Shop ${shopId}... URL: ${url}`);
 
         const resp = await fetch(url, {

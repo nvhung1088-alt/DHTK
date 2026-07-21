@@ -2060,9 +2060,13 @@
 
                 const escapeHtml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                 
+                let posBadge = json.posSuccess 
+                    ? `<div style="display:inline-block; background:#dcfce7; color:#15803d; padding:3px 10px; border-radius:12px; font-size:0.78rem; font-weight:700; margin-top:4px;">✓ Đã đồng bộ kho POS</div>`
+                    : `<div style="display:inline-block; background:#fef3c7; color:#b45309; padding:3px 10px; border-radius:12px; font-size:0.78rem; font-weight:700; margin-top:4px;">⏳ Đã tiếp nhận - Chờ duyệt kho</div>`;
+
                 let orderSuccessHtml = `
                     <div style="border-bottom:1px dashed #cbd5e1; padding-bottom:8px; margin-bottom:8px;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                             <span style="color:#64748b;">Mã đơn hàng:</span>
                             <strong style="color:#0f172a;">#${json.posOrderId || json.orderId}</strong>
                         </div>
@@ -2070,9 +2074,12 @@
                             <span style="color:#64748b;">Khách hàng:</span>
                             <strong>${escapeHtml(name)}</strong>
                         </div>
-                        <div style="display:flex; justify-content:space-between;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                             <span style="color:#64748b;">Số điện thoại:</span>
                             <strong>${escapeHtml(phone)}</strong>
+                        </div>
+                        <div style="text-align:right;">
+                            ${posBadge}
                         </div>
                     </div>
                     
