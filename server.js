@@ -630,16 +630,19 @@ app.post('/api/orders', (req, res, next) => {
             let posVariantId = null;
             let matchedVar = null;
 
+            let posRetailPrice = null;
             if (details.variants && details.variants.length > 0) {
                 matchedVar = details.variants.find(v => String(v.id) === String(item.variantId) || (v.sku && item.sku && (v.sku || '').trim().toUpperCase() === (item.sku || '').trim().toUpperCase()));
                 if (matchedVar) {
                     posProductId = matchedVar.pos_product_id;
                     posVariantId = matchedVar.pos_variant_id;
+                    posRetailPrice = matchedVar.pos_retail_price;
                 }
             }
             if (!posProductId) {
                 posProductId = details.pos_product_id;
                 posVariantId = details.pos_variant_id;
+                if (posRetailPrice == null) posRetailPrice = details.pos_retail_price;
             }
 
             // Lấy giá từ biến thể
@@ -668,7 +671,8 @@ app.post('/api/orders', (req, res, next) => {
                 finalPrice: finalUnitPrice,
                 total: itemTotal,
                 pos_product_id: posProductId,
-                pos_variant_id: posVariantId
+                pos_variant_id: posVariantId,
+                pos_retail_price: posRetailPrice
             });
         });
 
@@ -771,13 +775,28 @@ async function pushOrderToPancake(customerInfo, processedItems) {
             return;
         }
 
+        // Lấy giá bán lẻ POS cho mỗi sản phẩm (dùng để tính discount)
+        // Nếu đã có pos_retail_price trong DB (sau khi sync) thì dùng luôn
+        // Nếu chưa có thì fallback về originalPrice (giá lẻ web)
+        let posOriginalAmount = 0;
+        let finalPayAmount = 0;
+
         const items = processedItems.map(item => {
             const line = {
-                quantity: item.qty,
-                price: item.finalPrice
+                quantity: item.qty
+                // Không gửi price - để POS tự lấy giá bán lẻ của nó
             };
             if (item.pos_product_id) line.product_id = item.pos_product_id;
             if (item.pos_variant_id) line.variation_id = item.pos_variant_id;
+            
+            // pos_retail_price: giá bán lẻ thực tế trên POS (lấy từ DB sau Sync)
+            // Nếu chưa có thì dùng originalPrice (giá lẻ web - kém chính xác hơn)
+            let posPrice = (item.pos_retail_price != null && item.pos_retail_price > 0) 
+                ? item.pos_retail_price 
+                : item.originalPrice;
+            posOriginalAmount += posPrice * item.qty;
+            finalPayAmount += item.finalPrice * item.qty;
+
             return line;
         });
 
@@ -794,9 +813,15 @@ async function pushOrderToPancake(customerInfo, processedItems) {
                     address: customerInfo.address
                 },
                 note: customerInfo.note || '',
-                items: items
+                items: items,
+                discount: posOriginalAmount - finalPayAmount
             }
         };
+
+        console.log('[PANCAKE PRICE DEBUG] posOriginalAmount:', posOriginalAmount, '| finalPayAmount:', finalPayAmount, '| discount:', posOriginalAmount - finalPayAmount);
+        processedItems.forEach(it => {
+            console.log(`  Item: ${it.name} | qty: ${it.qty} | finalPrice: ${it.finalPrice} | pos_retail_price: ${it.pos_retail_price} | pos_product_id: ${it.pos_product_id ? 'OK' : 'MISSING'}`);
+        });
 
         let url = `https://pos.pages.fm/api/v1/shops/${shopId}/orders?api_key=${apiKey}`;
         if (warehouseId) {
@@ -928,7 +953,8 @@ async function performPosSync(posCredentials) {
                 skuStockMap[String(code).trim().toUpperCase()] = {
                     stock: getStock(posProduct),
                     pos_product_id: pId,
-                    pos_variant_id: null
+                    pos_variant_id: null,
+                    pos_retail_price: posProduct.retail_price || 0
                 };
             }
         } else {
@@ -938,7 +964,8 @@ async function performPosSync(posCredentials) {
                     skuStockMap[String(sku).trim().toUpperCase()] = {
                         stock: getStock(v),
                         pos_product_id: pId || v.product_id,
-                        pos_variant_id: v.id || v.variation_id
+                        pos_variant_id: v.id || v.variation_id,
+                        pos_retail_price: v.retail_price || posProduct.retail_price || 0
                     };
                 }
             });
@@ -978,6 +1005,7 @@ async function performPosSync(posCredentials) {
                 productQuantitySum = newStock;
                 details.pos_product_id = posData.pos_product_id;
                 details.pos_variant_id = posData.pos_variant_id;
+                details.pos_retail_price = posData.pos_retail_price;
                 isUpdated = true;
 
                 matchedProducts.push({
@@ -1010,6 +1038,7 @@ async function performPosSync(posCredentials) {
                     v.stock = newStock;
                     v.pos_product_id = posData.pos_product_id;
                     v.pos_variant_id = posData.pos_variant_id;
+                    v.pos_retail_price = posData.pos_retail_price;
                     isUpdated = true;
 
                     productQuantitySum += newStock;
