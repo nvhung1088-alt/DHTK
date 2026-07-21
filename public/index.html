@@ -1104,7 +1104,7 @@
                 
                 // Khôi phục HTML của excelStep2 cho lần dùng sau
                 document.getElementById('excelStep2').innerHTML = `
-                <p style="font-size:0.95rem; color:#1e293b; margin-bottom: 10px;">✅ Đã đọc thành công <strong id="importCount" style="color:#10b981;">0</strong> sản phẩm từ file Excel.</p>
+                <p style="font-size:0.95rem; color:#1e293b; margin-bottom: 10px;">✅ Đã đọc thành công <strong id="importCount2" style="color:#10b981;">0</strong> sản phẩm từ file Excel.</p>
                 <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px; margin-bottom:1rem; font-size:0.85rem; color:#1e40af;">
                     ℹ️ Hệ thống sẽ tự động tách Giá và Điều kiện mua sỉ (Ví dụ: <strong>8000 >= 10</strong> sẽ tách thành 8000đ khi mua từ 10).
                 </div>
@@ -2504,16 +2504,7 @@
             
             renderUI();
 
-            try {
-                const savedCustomer = localStorage.getItem('dhtk_customer');
-                if (savedCustomer) {
-                    const info = JSON.parse(savedCustomer);
-                    if (info.name) document.getElementById('orderName').value = info.name;
-                    if (info.phone) document.getElementById('orderPhone').value = info.phone;
-                    if (info.address) document.getElementById('orderAddress').value = info.address;
-                    if (info.note) document.getElementById('orderNote').value = info.note;
-                }
-            } catch(e) {}
+            // NOTE: Customer info is now loaded via loadCustomerInfoFromStorage() at start of loadInitialData()
 
             const loader = document.getElementById('globalLoader');
             if(loader) {
