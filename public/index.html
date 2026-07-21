@@ -2062,7 +2062,37 @@
                 
                 let posBadge = json.posSuccess 
                     ? `<div style="display:inline-block; background:#dcfce7; color:#15803d; padding:3px 10px; border-radius:12px; font-size:0.78rem; font-weight:700; margin-top:4px;">✓ Đã đồng bộ kho POS</div>`
-                    : `<div style="display:inline-block; background:#fef3c7; color:#b45309; padding:3px 10px; border-radius:12px; font-size:0.78rem; font-weight:700; margin-top:4px;">⏳ Đã tiếp nhận - Chờ duyệt kho</div>`;
+                    : `<div style="display:inline-block; background:#fef3c7; color:#b45309; padding:3px 10px; border-radius:12px; font-size:0.78rem; font-weight:700; margin-top:4px;">⏳ Đã tiếp nhận - Chưa nối POS</div>`;
+
+                let posErrorDetailHtml = '';
+                if (!json.posSuccess && json.posErrorMsg) {
+                    let userReason = '';
+                    let fixGuide = '';
+
+                    const errLower = (json.posErrorMsg || '').toLowerCase();
+                    
+                    if (errLower.includes('kho hàng') || errLower.includes('missing') || errLower.includes('sku') || errLower.includes('sản phẩm')) {
+                        userReason = 'Sản phẩm trong đơn chưa được liên kết mã kho POS.';
+                        fixGuide = 'Chủ shop chỉ cần mở Admin Panel → tab POS Sync → bấm "Đồng bộ ngay" để cập nhật nốt sản phẩm mới.';
+                    } else if (errLower.includes('phone') || errLower.includes('điện thoại') || errLower.includes('sđt')) {
+                        userReason = 'Số điện thoại người nhận chưa chính xác hoặc không đúng định dạng.';
+                        fixGuide = 'Vui lòng kiểm tra lại số điện thoại và đặt lại đơn hàng.';
+                    } else if (errLower.includes('address') || errLower.includes('địa chỉ')) {
+                        userReason = 'Địa chỉ nhận hàng quá ngắn hoặc thiếu thông tin.';
+                        fixGuide = 'Vui lòng ghi chi tiết số nhà, tên đường, thôn/xóm, phường/xã.';
+                    } else {
+                        userReason = `Kết nối kho POS thông báo: "${escapeHtml(json.posErrorMsg)}"`;
+                        fixGuide = 'Đơn hàng đã được lưu an toàn trên Telegram hệ thống, nhân viên sẽ trực tiếp tạo đơn tay cho bạn.';
+                    }
+
+                    posErrorDetailHtml = `
+                        <div style="background:#fff7ed; border:1px solid #ffedd5; border-radius:10px; padding:10px; margin-top:8px; font-size:0.82rem; text-align:left; color:#9a3412; line-height:1.4;">
+                            <div style="font-weight:700; color:#c2410c; margin-bottom:3px;">⚠️ Lý do chưa đẩy được POS:</div>
+                            <div>• ${userReason}</div>
+                            <div style="margin-top:5px; font-size:0.8rem; color:#7c2d12;">👉 <b>Hướng dẫn xử lý:</b> ${fixGuide}</div>
+                        </div>
+                    `;
+                }
 
                 let orderSuccessHtml = `
                     <div style="border-bottom:1px dashed #cbd5e1; padding-bottom:8px; margin-bottom:8px;">
@@ -2081,6 +2111,7 @@
                         <div style="text-align:right;">
                             ${posBadge}
                         </div>
+                        ${posErrorDetailHtml}
                     </div>
                     
                     <div style="margin-bottom:10px;">
