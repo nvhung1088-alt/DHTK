@@ -163,6 +163,17 @@ async function initDB() {
         )
     `);
 
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS pos_sync_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            status TEXT NOT NULL,
+            total_products INTEGER DEFAULT 0,
+            matched_count INTEGER DEFAULT 0,
+            error_message TEXT
+        )
+    `);
+
     // Seed default admin if not exists
     const adminCountResult = await db.execute('SELECT COUNT(*) as count FROM admin_creds');
     const adminCount = adminCountResult.rows[0]?.count || 0;
@@ -778,7 +789,7 @@ async function pushOrderToPancake(customerInfo, processedItems) {
 
         if (!apiKey || !shopId) {
             console.log('[PANCAKE ORDER SYNC] Bỏ qua đẩy đơn vì chưa cài đặt pos_api_key hoặc pos_shop_id');
-            return;
+            return { success: false, message: 'Chưa cấu hình pos_api_key hoặc pos_shop_id trong hệ thống POS' };
         }
 
         // Realtime POS Fetch: Nếu có sản phẩm chưa nối kho POS, tự động tìm trên POS theo SKU và gán ID ngay lập tức
