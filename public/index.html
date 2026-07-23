@@ -3,10 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ĐHTK - Tổng Kho Sỉ Lẻ V12 (Bug Fix Data)</title>
-    <meta name="description" id="seoDescription" content="Hệ thống đặt hàng sỉ lẻ thông minh ĐHTK, tự động tính toán chiết khấu, đồng bộ tồn kho POS Pancake trực tuyến.">
-    <meta name="keywords" content="đhtk, tổng kho sỉ lẻ, đặt hàng thông minh, pancake pos, đồng bộ tồn kho">
+    <title>Tổng Kho Sỉ Lẻ Thỏ Hồng - Hệ Thống Đặt Hàng Thông Minh</title>
+    <meta name="description" id="seoDescription" content="Hệ thống đặt hàng sỉ lẻ thông minh Thỏ Hồng / ĐHTK, tự động tính toán chiết khấu, đồng bộ tồn kho POS Pancake trực tuyến.">
+    <meta name="keywords" content="thỏ hồng, dhtk, tổng kho sỉ lẻ, đặt hàng thông minh, pancake pos, đồng bộ tồn kho">
     <meta name="robots" content="index, follow">
+
+    <!-- Open Graph / Zalo / Facebook Sharing -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" id="ogTitle" content="Tổng Kho Sỉ Lẻ Thỏ Hồng - Hệ Thống Đặt Hàng Thông Minh">
+    <meta property="og:description" id="ogDescription" content="Hệ thống đặt hàng sỉ lẻ thông minh Thỏ Hồng / ĐHTK, tự động tính toán chiết khấu, đồng bộ tồn kho POS Pancake trực tuyến.">
+    <meta property="og:image" id="ogImage" content="https://thohong.top/media__1784598666512.png">
+    <meta property="og:url" id="ogUrl" content="https://thohong.top">
+    <meta property="og:site_name" content="Thỏ Hồng / ĐHTK Store">
+
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" id="twitterTitle" content="Tổng Kho Sỉ Lẻ Thỏ Hồng - Hệ Thống Đặt Hàng Thông Minh">
+    <meta name="twitter:description" id="twitterDescription" content="Hệ thống đặt hàng sỉ lẻ thông minh Thỏ Hồng / ĐHTK, tự động tính toán chiết khấu, đồng bộ tồn kho POS Pancake trực tuyến.">
+    <meta name="twitter:image" id="twitterImage" content="https://thohong.top/media__1784598666512.png">
     <style>
         :root {
             --primary: #0f172a; --accent: #3b82f6; --accent-hover: #2563eb;
@@ -514,7 +528,7 @@
                         
                         <div>
                             <label style="font-size:0.85rem; font-weight:600; color:#1e40af; display:block; margin-bottom:4px;">Meta Title (Tiêu đề SEO):</label>
-                            <input type="text" id="ap_seo_title" style="width:100%;" placeholder="VD: Tổng Kho Sỉ Lẻ ĐHTK - Giá Tốt Nhất">
+                            <input type="text" id="ap_seo_title" style="width:100%;" placeholder="VD: Tổng Kho Sỉ Lẻ Thỏ Hồng - Giá Tốt Nhất">
                         </div>
 
                         <div>
@@ -1128,7 +1142,12 @@
             if(mode === 'list') listEl.classList.add('list-view'); else listEl.classList.remove('list-view');
         }
 
-        function setCategory(cat) { activeCategory = cat; renderProducts(); renderCategories(); }
+        function setCategory(cat) { 
+            activeCategory = cat; 
+            updateURLParams({ cat: cat });
+            renderProducts(); 
+            renderCategories(); 
+        }
 
         function scrollCatSlide(direction) {
             const container = document.getElementById('catScrollWrapper');
@@ -1542,6 +1561,13 @@
             if (!p) return;
             const activeV = getActiveVariant(p.id);
             
+            // Cập nhật URL & SEO động cho sản phẩm
+            updateURLParams({ p: p.id });
+            const pTitle = `${p.name} | ${storeSettings.storeName || 'Thỏ Hồng'}`;
+            const pDesc = `Giá sỉ/lẻ tốt nhất cho ${p.name}. ${p.description || ''}`.substring(0, 160);
+            const pImg = (p.images && p.images[0]) || (activeV && activeV.image) || '';
+            updateSEO(pTitle, pDesc, pImg);
+            
             let modalImages = [];
             if (activeV && activeV.image) modalImages.push(activeV.image);
             else if (p.variants && p.variants.length > 0 && p.variants[0].image) modalImages.push(p.variants[0].image);
@@ -1628,6 +1654,10 @@
                     <div>
                         <div class="cat-badge" ${editAttr} onblur="updateProductInfo('${p.id}', 'category', this.innerText)">${p.category}</div>
                         <h2 style="font-size: 1.8rem; color: var(--primary); margin-bottom: 0.5rem; line-height:1.2;" ${editAttr} onblur="updateProductInfo('${p.id}', 'name', this.innerText)">${p.name}</h2>
+                        
+                        <div style="margin-bottom:10px;">
+                            <button class="btn" style="background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;" onclick="copyShareLink('${p.id}', 'product')">🔗 Sao chép Link Chia Sẻ Sản Phẩm</button>
+                        </div>
                         
                         <div style="display:flex; gap:15px; border-bottom: 1px dashed var(--border); padding-bottom: 1rem; margin-bottom: 1rem; flex-wrap:wrap;">
                             <div class="product-meta" style="border:none; margin:0; padding:0;">Mã SKU: <span class="meta-val" ${editAttr} onblur="updateVariantInfo('${p.id}', '${activeV?activeV.id:''}', 'sku', this.innerText)">${sku}</span></div>
@@ -1820,7 +1850,13 @@
             updateCartUI(); 
         }
 
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        function closeModal(id) { 
+            document.getElementById(id).classList.remove('active'); 
+            if (id === 'detailModalOverlay') {
+                updateURLParams({ p: null });
+                updateSEO();
+            }
+        }
 
         function renderLogo() {
             const editAttr = isAdmin ? 'contenteditable="true"' : '';
@@ -1836,12 +1872,69 @@
             }
         }
 
-        function updateSEO() {
-            document.title = storeSettings.metaTitle || 'ĐHTK - Tổng Kho Sỉ Lẻ V12';
-            const metaDesc = document.getElementById('seoDescription');
-            if (metaDesc) {
-                metaDesc.setAttribute('content', storeSettings.metaDescription || '');
+        function updateURLParams(params = {}) {
+            try {
+                const url = new URL(window.location.href);
+                if (params.cat !== undefined) {
+                    if (params.cat && params.cat !== 'all') {
+                        url.searchParams.set('cat', params.cat);
+                    } else {
+                        url.searchParams.delete('cat');
+                    }
+                }
+                if (params.p !== undefined) {
+                    if (params.p) {
+                        url.searchParams.set('p', params.p);
+                    } else {
+                        url.searchParams.delete('p');
+                    }
+                }
+                window.history.replaceState({}, '', url.toString());
+            } catch(e) {}
+        }
+
+        function copyShareLink(target, type) {
+            let shareUrl = window.location.origin + window.location.pathname;
+            if (type === 'product' && target) {
+                shareUrl += `?p=${encodeURIComponent(target)}`;
+            } else if (type === 'category' && target && target !== 'all') {
+                shareUrl += `?cat=${encodeURIComponent(target)}`;
             }
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    showToast('🔗 Đã sao chép liên kết chia sẻ!');
+                }).catch(() => fallbackCopy(shareUrl));
+            } else {
+                fallbackCopy(shareUrl);
+                showToast('🔗 Đã sao chép liên kết chia sẻ!');
+            }
+        }
+
+        function updateSEO(customTitle, customDesc, customImage) {
+            const title = customTitle || storeSettings.metaTitle || 'Tổng Kho Sỉ Lẻ Thỏ Hồng - Hệ Thống Đặt Hàng Thông Minh';
+            const desc = customDesc || storeSettings.metaDescription || 'Hệ thống đặt hàng sỉ lẻ thông minh Thỏ Hồng / ĐHTK, tự động tính toán chiết khấu, đồng bộ tồn kho POS trực tuyến.';
+            const image = customImage || (storeSettings.logoUrl || 'https://thohong.top/media__1784598666512.png');
+            const currentUrl = window.location.href;
+
+            document.title = title;
+
+            const setMeta = (id, propName, propType, val) => {
+                let el = document.getElementById(id);
+                if (!el) {
+                    el = document.querySelector(`meta[${propType}="${propName}"]`);
+                }
+                if (el) el.setAttribute('content', val);
+            };
+
+            setMeta('seoDescription', 'description', 'name', desc);
+            setMeta('ogTitle', 'og:title', 'property', title);
+            setMeta('ogDescription', 'og:description', 'property', desc);
+            setMeta('ogImage', 'og:image', 'property', image);
+            setMeta('ogUrl', 'og:url', 'property', currentUrl);
+            setMeta('twitterTitle', 'twitter:title', 'name', title);
+            setMeta('twitterDescription', 'twitter:description', 'name', desc);
+            setMeta('twitterImage', 'twitter:image', 'name', image);
         }
 
         function renderPolicy() {
@@ -2362,7 +2455,7 @@
             storeSettings.logoText = document.getElementById('ap_store_logo').value.trim() || 'ĐHTK';
             storeSettings.bannerTitle = document.getElementById('ap_banner_title').value.trim() || 'Tổng Kho Sỉ Lẻ ĐHTK';
             storeSettings.bannerSubtitle = document.getElementById('ap_banner_subtitle').value.trim();
-            storeSettings.metaTitle = document.getElementById('ap_seo_title').value.trim() || 'ĐHTK - Tổng Kho Sỉ Lẻ V12';
+            storeSettings.metaTitle = document.getElementById('ap_seo_title').value.trim() || 'Tổng Kho Sỉ Lẻ Thỏ Hồng - Hệ Thống Đặt Hàng Thông Minh';
             storeSettings.metaDescription = document.getElementById('ap_seo_desc').value.trim();
             storeSettings.contact_hotline = document.getElementById('ap_contact_hotline').value.trim();
             storeSettings.contact_zalo = document.getElementById('ap_contact_zalo').value.trim();
@@ -2503,6 +2596,22 @@
             } catch(e) {}
             
             renderUI();
+
+            // Xử lý link trực tiếp (Deep Linking URL: ?cat=... hoặc ?p=...)
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const paramCat = urlParams.get('cat');
+                const paramProduct = urlParams.get('p') || urlParams.get('product');
+
+                if (paramCat) {
+                    activeCategory = paramCat;
+                    renderCategories();
+                    renderProducts();
+                }
+                if (paramProduct) {
+                    openDetailModal(paramProduct);
+                }
+            } catch(e) {}
 
             // NOTE: Customer info is now loaded via loadCustomerInfoFromStorage() at start of loadInitialData()
 

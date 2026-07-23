@@ -195,11 +195,11 @@ async function initDB() {
             bannerTitle: 'Tổng Kho Sỉ Lẻ ĐHTK',
             bannerSubtitle: 'Hệ thống đặt hàng thông minh, tự động cộng gộp chiết khấu. Đã fix lỗi gom nhóm, load chuẩn 100% dữ liệu!',
             logoText: 'ĐHTK',
-            metaTitle: 'ĐHTK - Tổng Kho Sỉ Lẻ V12 (Bug Fix Data)',
-            metaDescription: 'Hệ thống đặt hàng sỉ lẻ thông minh ĐHTK, tự động tính toán chiết khấu, đồng bộ tồn kho POS Pancake trực tuyến.',
+            metaTitle: 'Tổng Kho Sỉ Lẻ Thỏ Hồng - Hệ Thống Đặt Hàng Thông Minh',
+            metaDescription: 'Hệ thống đặt hàng sỉ lẻ thông minh Thỏ Hồng / ĐHTK, tự động tính toán chiết khấu, đồng bộ tồn kho POS Pancake trực tuyến.',
             telegramToken: process.env.TELEGRAM_TOKEN || '',
             telegramChatId: process.env.TELEGRAM_CHAT_ID || '',
-            storeName: 'Tổng Kho ĐHTK',
+            storeName: 'Tổng Kho Thỏ Hồng',
             last_pos_sync: '0'
         };
 
@@ -211,6 +211,11 @@ async function initDB() {
         }
         console.log('[DB] Seeding default settings done.');
     }
+
+    // Tự động dọn dẹp metaTitle cũ dính chữ V12
+    try {
+        await db.execute("UPDATE settings SET value = 'Tổng Kho Sỉ Lẻ Thỏ Hồng - Hệ Thống Đặt Hàng Thông Minh' WHERE key = 'metaTitle' AND value LIKE '%V12%'");
+    } catch(e) {}
 
     // Ensure last_pos_sync exists if DB was already seeded
     try {
