@@ -1268,7 +1268,13 @@ app.get('/api/clean-test-data', async (req, res) => {
 // 15. SEO SERVER-SIDE RENDERING FOR CATEGORIES & PRODUCTS (ZALO / FB SHARE PREVIEW)
 const escapeHtmlServer = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-app.get(['/danh-muc/:slug', '/san-pham/:slug'], async (req, res) => {
+app.use(async (req, res, next) => {
+    const fullPath = req.headers['x-matched-path'] || req.originalUrl || req.url || '';
+    const isCat = req.query.seo_type === 'cat' || fullPath.includes('/danh-muc/');
+    const isProd = req.query.seo_type === 'prod' || fullPath.includes('/san-pham/');
+
+    if (!isCat && !isProd) return next();
+
     try {
         let html = '';
         const possiblePaths = [
@@ -1284,29 +1290,33 @@ app.get(['/danh-muc/:slug', '/san-pham/:slug'], async (req, res) => {
         }
 
         if (!html) {
-            console.error('[SEO SSR WARN] Could not read public/index.html file on disk.');
-            return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+            console.error('[SEO SSR WARN] Could not read public/index.html on disk.');
+            return next();
         }
 
-        const isCategory = req.path.startsWith('/danh-muc/');
-        const slug = req.params.slug;
+        let slug = req.query.seo_slug || '';
+        if (!slug) {
+            const parts = fullPath.split('?')[0].split('/');
+            slug = parts[parts.length - 1] || parts[parts.length - 2] || '';
+        }
 
         let title = 'Tổng Kho Sỉ Lẻ Thỏ Hồng - Hệ Thống Đặt Hàng Thông Minh';
         let desc = 'Hệ thống đặt hàng sỉ lẻ thông minh Thỏ Hồng / ĐHTK, tự động tính toán chiết khấu, đồng bộ tồn kho POS trực tuyến.';
         let image = 'https://thohong.top/media__1784598666512.png';
-        const fullUrl = `https://${req.headers.host || 'thohong.top'}${req.originalUrl}`;
+        const host = req.headers['x-forwarded-host'] || req.headers.host || 'thohong.top';
+        const protocol = req.headers['x-forwarded-proto'] || 'https';
+        const fullUrl = `${protocol}://${host}${fullPath}`;
 
         // Get Store Settings from DB
         const settingsRes = await db.execute("SELECT key, value FROM settings WHERE key IN ('storeName', 'metaTitle', 'metaDescription', 'logoUrl')");
         const storeSettings = {};
         settingsRes.rows.forEach(r => storeSettings[r.key] = r.value);
-
         const storeName = storeSettings.storeName || 'Thỏ Hồng';
 
-        if (isCategory) {
-            const rawCatName = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        if (isCat) {
+            const decodedSlug = decodeURIComponent(slug);
+            const rawCatName = decodedSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
             
-            // Query DB for products matching category to get clean category name & image
             const catProdRes = await db.execute({
                 sql: "SELECT category, imageUrl, details FROM products WHERE LOWER(category) LIKE ? OR category LIKE ? LIMIT 1",
                 args: [`%${rawCatName}%`, `%${rawCatName}%`]
@@ -1324,12 +1334,16 @@ app.get(['/danh-muc/:slug', '/san-pham/:slug'], async (req, res) => {
 
             title = `Danh Mục ${realCatName} | ${storeName}`;
             desc = `Tổng hợp các sản phẩm thuộc danh mục ${realCatName} tại ${storeName} với giá sỉ/lẻ tốt nhất, chiết khấu tự động theo số lượng.`;
-        } else {
-            // Product slug format: name-slug-pPRODUCT_ID or pPRODUCT_ID
-            const pIdMatch = slug.match(/-p([a-zA-Z0-9_-]+)$/) || slug.match(/p([a-zA-Z0-9_-]+)$/);
-            const pId = pIdMatch ? pIdMatch[1] : slug;
+        } else if (isProd) {
+            const decodedSlug = decodeURIComponent(slug);
+            const pIdMatch = decodedSlug.match(/-p([a-zA-Z0-9_-]+)$/) || decodedSlug.match(/p([a-zA-Z0-9_-]+)$/);
+            const pId = pIdMatch ? pIdMatch[1] : decodedSlug;
 
-            const pResult = await db.execute({ sql: 'SELECT * FROM products WHERE id = ? OR id = ? OR id LIKE ? LIMIT 1', args: [pId, `SP${pId}`, `%${pId}%`] });
+            const pResult = await db.execute({
+                sql: 'SELECT * FROM products WHERE id = ? OR id = ? OR id LIKE ? LIMIT 1',
+                args: [pId, `SP${pId}`, `%${pId}%`]
+            });
+
             if (pResult.rows && pResult.rows.length > 0) {
                 const p = pResult.rows[0];
                 let details = {};
@@ -1356,10 +1370,10 @@ app.get(['/danh-muc/:slug', '/san-pham/:slug'], async (req, res) => {
         html = html.replace(/<meta name="twitter:image" id="twitterImage" content=".*?">/i, `<meta name="twitter:image" id="twitterImage" content="${escapeHtmlServer(image)}">`);
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(html);
+        return res.send(html);
     } catch(err) {
         console.error('[SEO SSR ERROR]', err);
-        res.sendFile(path.join(__dirname, 'public', 'index.html'));
+        next();
     }
 });
 
