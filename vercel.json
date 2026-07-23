@@ -12,8 +12,8 @@
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "server.js" },
-    { "src": "/danh-muc/(.*)", "dest": "server.js?seo_type=cat&seo_slug=$1" },
-    { "src": "/san-pham/(.*)", "dest": "server.js?seo_type=prod&seo_slug=$1" },
+    { "src": "/danh-muc/(.*)", "dest": "/index.html" },
+    { "src": "/san-pham/(.*)", "dest": "/index.html" },
     { "src": "/(.*)", "dest": "public/$1" }
   ],
   "crons": [
