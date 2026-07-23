@@ -1323,8 +1323,11 @@ app.use(async (req, res, next) => {
         image = c.image || image;
     } else {
         try {
-            // Timeout wrapper: increased to 8.5s (Vercel max is 10s) to survive cold starts better
-            const DB_TIMEOUT = 8500;
+            // Timeout wrapper: decreased to 3.5s.
+            // Vercel Hobby max execution time is 10s. Cold starts take ~4s.
+            // If we wait 8.5s, Vercel will Force Kill the function at 10s before our timeout logic can execute.
+            // 3.5s guarantees we return a response within 7-8s total.
+            const DB_TIMEOUT = 3500;
             const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('DB_TIMEOUT')), DB_TIMEOUT));
 
             const dbQueryPromise = (async () => {
