@@ -192,6 +192,17 @@ async function initDB() {
         )
     `);
 
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS daily_stats (
+            date TEXT NOT NULL,
+            referrer TEXT NOT NULL DEFAULT '',
+            url TEXT NOT NULL DEFAULT '',
+            product_id TEXT NOT NULL DEFAULT '',
+            view_count INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (date, referrer, url, product_id)
+        )
+    `);
+
     // Seed default admin if not exists
     const adminCountResult = await db.execute('SELECT COUNT(*) as count FROM admin_creds');
     const adminCount = adminCountResult.rows[0]?.count || 0;
@@ -571,6 +582,86 @@ app.post('/api/products/import', authenticateToken, async (req, res) => {
     } catch (e) {
         console.error('[IMPORT ERROR]', e.message);
         res.status(500).json({ error: e.message });
+    }
+});
+
+// 9. ANALYTICS (TRACKING)
+app.post('/api/track', async (req, res) => {
+    try {
+        let { url, referrer, product_id } = req.body || {};
+        url = (url || '').substring(0, 500);
+        referrer = (referrer || '').substring(0, 500);
+        product_id = (product_id || '').substring(0, 100);
+
+        const vnTime = new Date(new Date().getTime() + (7 * 60 * 60 * 1000));
+        const dateStr = vnTime.toISOString().split('T')[0];
+
+        await db.execute({
+            sql: `INSERT INTO daily_stats (date, referrer, url, product_id, view_count) 
+                  VALUES (?, ?, ?, ?, 1) 
+                  ON CONFLICT(date, referrer, url, product_id) 
+                  DO UPDATE SET view_count = view_count + 1`,
+            args: [dateStr, referrer, url, product_id]
+        });
+
+        res.json({ success: true });
+    } catch (e) {
+        console.error('[TRACKING ERROR]', e.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.get('/api/admin/analytics', authenticateToken, async (req, res) => {
+    try {
+        let { startDate, endDate } = req.query;
+        if (!startDate || !endDate) {
+            const vnTime = new Date(new Date().getTime() + (7 * 60 * 60 * 1000));
+            endDate = vnTime.toISOString().split('T')[0];
+            const startTime = new Date(vnTime.getTime() - (6 * 24 * 60 * 60 * 1000));
+            startDate = startTime.toISOString().split('T')[0];
+        }
+
+        const refResult = await db.execute({
+            sql: `SELECT referrer, SUM(view_count) as total_views FROM daily_stats WHERE date >= ? AND date <= ? GROUP BY referrer ORDER BY total_views DESC`,
+            args: [startDate, endDate]
+        });
+
+        const prodResult = await db.execute({
+            sql: `SELECT product_id, SUM(view_count) as total_views FROM daily_stats WHERE date >= ? AND date <= ? AND product_id != '' GROUP BY product_id ORDER BY total_views DESC LIMIT 20`,
+            args: [startDate, endDate]
+        });
+
+        const totalResult = await db.execute({
+            sql: `SELECT SUM(view_count) as total FROM daily_stats WHERE date >= ? AND date <= ?`,
+            args: [startDate, endDate]
+        });
+        const totalViews = totalResult.rows[0]?.total || 0;
+
+        const d1 = new Date(startDate);
+        const d2 = new Date(endDate);
+        const diffDays = Math.ceil(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+
+        const prevEnd = new Date(d1.getTime() - (1 * 24 * 60 * 60 * 1000));
+        const prevStart = new Date(prevEnd.getTime() - ((diffDays - 1) * 24 * 60 * 60 * 1000));
+        const prevStartStr = prevStart.toISOString().split('T')[0];
+        const prevEndStr = prevEnd.toISOString().split('T')[0];
+
+        const prevResult = await db.execute({
+            sql: `SELECT SUM(view_count) as total FROM daily_stats WHERE date >= ? AND date <= ?`,
+            args: [prevStartStr, prevEndStr]
+        });
+        const prevTotalViews = prevResult.rows[0]?.total || 0;
+
+        res.json({
+            success: true,
+            currentPeriod: { start: startDate, end: endDate, totalViews },
+            previousPeriod: { start: prevStartStr, end: prevEndStr, totalViews: prevTotalViews },
+            sources: refResult.rows || [],
+            topProducts: prodResult.rows || []
+        });
+    } catch (e) {
+        console.error('[ANALYTICS ERROR]', e.message);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
