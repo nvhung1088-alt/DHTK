@@ -596,6 +596,17 @@ app.post('/api/track', async (req, res) => {
         const vnTime = new Date(new Date().getTime() + (7 * 60 * 60 * 1000));
         const dateStr = vnTime.toISOString().split('T')[0];
 
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS daily_stats (
+                date TEXT NOT NULL,
+                referrer TEXT NOT NULL DEFAULT '',
+                url TEXT NOT NULL DEFAULT '',
+                product_id TEXT NOT NULL DEFAULT '',
+                view_count INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY (date, referrer, url, product_id)
+            )
+        `);
+
         await db.execute({
             sql: `INSERT INTO daily_stats (date, referrer, url, product_id, view_count) 
                   VALUES (?, ?, ?, ?, 1) 
@@ -606,19 +617,33 @@ app.post('/api/track', async (req, res) => {
 
         res.json({ success: true });
     } catch (e) {
-        console.error('[TRACKING ERROR]', e.message);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('[TRACKING ERROR]', e);
+        res.status(500).json({ error: e.message || 'Internal server error' });
     }
 });
 
 app.get('/api/admin/analytics', authenticateToken, async (req, res) => {
     try {
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS daily_stats (
+                date TEXT NOT NULL,
+                referrer TEXT NOT NULL DEFAULT '',
+                url TEXT NOT NULL DEFAULT '',
+                product_id TEXT NOT NULL DEFAULT '',
+                view_count INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY (date, referrer, url, product_id)
+            )
+        `);
+
         let { startDate, endDate } = req.query;
         if (!startDate || !endDate) {
-            const vnTime = new Date(new Date().getTime() + (7 * 60 * 60 * 1000));
-            endDate = vnTime.toISOString().split('T')[0];
-            const startTime = new Date(vnTime.getTime() - (6 * 24 * 60 * 60 * 1000));
-            startDate = startTime.toISOString().split('T')[0];
+            const vnNow = new Date(new Date().getTime() + (7 * 60 * 60 * 1000));
+            const yyyy = vnNow.getUTCFullYear();
+            const mm = String(vnNow.getUTCMonth() + 1).padStart(2, '0');
+            const dd = String(vnNow.getUTCDate()).padStart(2, '0');
+            
+            endDate = `${yyyy}-${mm}-${dd}`;
+            startDate = `${yyyy}-${mm}-01`;
         }
 
         const refResult = await db.execute({
@@ -635,11 +660,11 @@ app.get('/api/admin/analytics', authenticateToken, async (req, res) => {
             sql: `SELECT SUM(view_count) as total FROM daily_stats WHERE date >= ? AND date <= ?`,
             args: [startDate, endDate]
         });
-        const totalViews = totalResult.rows[0]?.total || 0;
+        const totalViews = (totalResult.rows && totalResult.rows[0] && totalResult.rows[0].total) ? Number(totalResult.rows[0].total) : 0;
 
         const d1 = new Date(startDate);
         const d2 = new Date(endDate);
-        const diffDays = Math.ceil(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+        const diffDays = Math.max(1, Math.ceil(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24)) + 1);
 
         const prevEnd = new Date(d1.getTime() - (1 * 24 * 60 * 60 * 1000));
         const prevStart = new Date(prevEnd.getTime() - ((diffDays - 1) * 24 * 60 * 60 * 1000));
@@ -650,7 +675,7 @@ app.get('/api/admin/analytics', authenticateToken, async (req, res) => {
             sql: `SELECT SUM(view_count) as total FROM daily_stats WHERE date >= ? AND date <= ?`,
             args: [prevStartStr, prevEndStr]
         });
-        const prevTotalViews = prevResult.rows[0]?.total || 0;
+        const prevTotalViews = (prevResult.rows && prevResult.rows[0] && prevResult.rows[0].total) ? Number(prevResult.rows[0].total) : 0;
 
         res.json({
             success: true,
@@ -660,8 +685,8 @@ app.get('/api/admin/analytics', authenticateToken, async (req, res) => {
             topProducts: prodResult.rows || []
         });
     } catch (e) {
-        console.error('[ANALYTICS ERROR]', e.message);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('[ANALYTICS ERROR]', e);
+        res.status(500).json({ error: e.message || 'Internal server error' });
     }
 });
 

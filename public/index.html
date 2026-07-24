@@ -774,10 +774,18 @@
                 <div id="tab-analytics" class="apanel-content" style="display:none;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                         <h3 style="margin:0; font-size:1.1rem; color:#1e40af;">📈 Báo Cáo Truy Cập</h3>
-                        <div style="display:flex; gap:10px;">
-                            <input type="date" id="ana-start-date" class="form-input" style="width:140px; padding:6px 10px; font-size:14px;">
-                            <input type="date" id="ana-end-date" class="form-input" style="width:140px; padding:6px 10px; font-size:14px;">
-                            <button class="btn btn-primary" style="padding:6px 15px; font-size:14px;" onclick="loadAnalytics()">Lọc</button>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn btn-secondary" style="padding:5px 10px; font-size:13px;" onclick="setAnalyticsFilter('today')">Hôm nay</button>
+                                <button class="btn btn-secondary" style="padding:5px 10px; font-size:13px;" onclick="setAnalyticsFilter('yesterday')">Hôm qua</button>
+                                <button class="btn btn-secondary" style="padding:5px 10px; font-size:13px;" onclick="setAnalyticsFilter('month')">Tháng này</button>
+                            </div>
+                            <div style="display:flex; gap:5px; align-items:center;">
+                                <input type="date" id="ana-start-date" class="form-input" style="width:135px; padding:5px 8px; font-size:13px;">
+                                <span style="color:#64748b;">-</span>
+                                <input type="date" id="ana-end-date" class="form-input" style="width:135px; padding:5px 8px; font-size:13px;">
+                                <button class="btn btn-primary" style="padding:5px 12px; font-size:13px;" onclick="loadAnalytics()">Lọc</button>
+                            </div>
                         </div>
                     </div>
                     
@@ -3058,9 +3066,49 @@
             } catch(e) {}
         }
 
+        function setAnalyticsFilter(type) {
+            const startEl = document.getElementById('ana-start-date');
+            const endEl = document.getElementById('ana-end-date');
+            if (!startEl || !endEl) return;
+
+            const now = new Date(new Date().getTime() + (7 * 60 * 60 * 1000));
+            const yyyy = now.getUTCFullYear();
+            const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+            const dd = String(now.getUTCDate()).padStart(2, '0');
+            const todayStr = `${yyyy}-${mm}-${dd}`;
+
+            if (type === 'today') {
+                startEl.value = todayStr;
+                endEl.value = todayStr;
+            } else if (type === 'yesterday') {
+                const yest = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+                const yyyyY = yest.getUTCFullYear();
+                const mmY = String(yest.getUTCMonth() + 1).padStart(2, '0');
+                const ddY = String(yest.getUTCDate()).padStart(2, '0');
+                const yestStr = `${yyyyY}-${mmY}-${ddY}`;
+                startEl.value = yestStr;
+                endEl.value = yestStr;
+            } else if (type === 'month') {
+                startEl.value = `${yyyy}-${mm}-01`;
+                endEl.value = todayStr;
+            }
+            loadAnalytics();
+        }
+
         async function loadAnalytics() {
             const startEl = document.getElementById('ana-start-date');
             const endEl = document.getElementById('ana-end-date');
+            
+            // Mặc định là Tháng này nếu chưa chọn ngày
+            if (startEl && endEl && (!startEl.value || !endEl.value)) {
+                const now = new Date(new Date().getTime() + (7 * 60 * 60 * 1000));
+                const yyyy = now.getUTCFullYear();
+                const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+                const dd = String(now.getUTCDate()).padStart(2, '0');
+                startEl.value = `${yyyy}-${mm}-01`;
+                endEl.value = `${yyyy}-${mm}-${dd}`;
+            }
+
             const start = startEl ? startEl.value : '';
             const end = endEl ? endEl.value : '';
             let url = '/api/admin/analytics';
