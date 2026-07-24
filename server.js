@@ -1530,6 +1530,10 @@ app.use(async (req, res, next) => {
         .replace(/<meta name="twitter:description" id="twitterDescription" content=".*?">/i, `<meta name="twitter:description" id="twitterDescription" content="${escapeHtmlServer(desc)}">`)
         .replace(/<meta name="twitter:image" id="twitterImage" content=".*?">/i, `<meta name="twitter:image" id="twitterImage" content="${escapeHtmlServer(image)}">`);
 
+    if (settings.customHeaderCode) {
+        out = out.replace('</head>', `${settings.customHeaderCode}\n</head>`);
+    }
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.send(out);
 });
