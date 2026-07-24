@@ -475,6 +475,7 @@
             <!-- Tabs -->
             <div style="display:flex; border-bottom:2px solid #e2e8f0; background:#f8fafc; overflow-x:auto;">
                 <button class="apanel-tab active" onclick="switchTab('tab-store')" id="t-store">🏪 Cửa hàng</button>
+                <button class="apanel-tab" onclick="switchTab('tab-analytics'); loadAnalytics();" id="t-analytics">📈 Thống kê</button>
                 <button class="apanel-tab" onclick="switchTab('tab-seo')" id="t-seo">🚀 SEO & iSocial</button>
                 <button class="apanel-tab" onclick="switchTab('tab-telegram')" id="t-telegram">📨 Telegram</button>
                 <button class="apanel-tab" onclick="switchTab('tab-pos')" id="t-pos">🔄 POS Sync</button>
@@ -765,9 +766,48 @@
                             <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:4px;">Xác nhận mật khẩu mới:</label>
                             <input type="password" id="ap_confirm_password" placeholder="Nhập lại mật khẩu mới" style="width:100%;">
                         </div>
-                        <button class="btn btn-primary" onclick="apChangePassword()">🔐 Đổi mật khẩu</button>
+                <!-- Tab: Thống kê -->
+                <div id="tab-analytics" class="apanel-content" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin:0; font-size:1.1rem; color:#1e40af;">📈 Báo Cáo Truy Cập</h3>
+                        <div style="display:flex; gap:10px;">
+                            <input type="date" id="ana-start-date" class="form-input" style="width:140px; padding:6px 10px; font-size:14px;">
+                            <input type="date" id="ana-end-date" class="form-input" style="width:140px; padding:6px 10px; font-size:14px;">
+                            <button class="btn btn-primary" style="padding:6px 15px; font-size:14px;" onclick="loadAnalytics()">Lọc</button>
+                        </div>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:15px;">
+                        <div style="background:#eff6ff; padding:15px; border-radius:10px; border:1px solid #bfdbfe; text-align:center;">
+                            <div style="font-size:0.9rem; color:#3b82f6; margin-bottom:5px;">Lượt xem (Kỳ này)</div>
+                            <div id="ana-current-views" style="font-size:2rem; font-weight:bold; color:#1d4ed8;">-</div>
+                        </div>
+                        <div style="background:#f0fdf4; padding:15px; border-radius:10px; border:1px solid #bbf7d0; text-align:center;">
+                            <div style="font-size:0.9rem; color:#166534; margin-bottom:5px;">Tăng trưởng (Kỳ trước)</div>
+                            <div id="ana-growth" style="font-size:1.5rem; font-weight:bold; color:#15803d;">-</div>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr; gap:20px;">
+                        <!-- Nguồn truy cập -->
+                        <div style="background:white; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;">
+                            <div style="background:#f8fafc; padding:10px 15px; font-weight:bold; border-bottom:1px solid #e2e8f0;">Nguồn Truy Cập</div>
+                            <div style="padding:15px;" id="ana-sources-container">
+                                Đang tải...
+                            </div>
+                        </div>
+
+                        <!-- Sản phẩm Hot -->
+                        <div style="background:white; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;">
+                            <div style="background:#f8fafc; padding:10px 15px; font-weight:bold; border-bottom:1px solid #e2e8f0;">Top Sản Phẩm Xem Nhiều</div>
+                            <div style="padding:15px; max-height:300px; overflow-y:auto;" id="ana-products-container">
+                                Đang tải...
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Tab: Đổi Mật Khẩu -->
             </div>
         </div>
     </div>
@@ -1685,6 +1725,7 @@
 
         // --- PRODUCT DETAIL MODAL ---
         function openDetailModal(id) {
+            trackPageView(id);
             const cleanId = String(id || '').trim();
             const p = products.find(x => 
                 String(x.id) === cleanId || 
@@ -2992,6 +3033,93 @@
         });
         function scrollToTop() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // --- TRACKING & ANALYTICS ---
+        function trackPageView(productId) {
+            try {
+                if (window.isAdmin) return;
+                const url = window.location.href;
+                let ref = document.referrer || '';
+                if (url.includes('utm_source=zalo') || ref.includes('zalo')) ref = 'Zalo';
+                else if (url.includes('utm_source=facebook') || ref.includes('facebook.com')) ref = 'Facebook';
+                else if (ref.includes('google.com')) ref = 'Google';
+                else if (!ref) ref = 'Trực tiếp (Direct)';
+                
+                fetch('/api/track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, referrer: ref, product_id: productId || '' })
+                }).catch(function(e) { console.log(e); });
+            } catch(e) {}
+        }
+
+        async function loadAnalytics() {
+            const startEl = document.getElementById('ana-start-date');
+            const endEl = document.getElementById('ana-end-date');
+            const start = startEl ? startEl.value : '';
+            const end = endEl ? endEl.value : '';
+            let url = '/api/admin/analytics';
+            if (start && end) {
+                url += '?startDate=' + encodeURIComponent(start) + '&endDate=' + encodeURIComponent(end);
+            }
+            try {
+                const token = localStorage.getItem('dhtk_jwt');
+                const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token }});
+                if (!res.ok) return showToast('Lỗi tải thống kê', 'error');
+                const data = await res.json();
+                
+                if (startEl && !start) startEl.value = data.currentPeriod.start;
+                if (endEl && !end) endEl.value = data.currentPeriod.end;
+
+                const currViewsEl = document.getElementById('ana-current-views');
+                if (currViewsEl) currViewsEl.innerText = new Intl.NumberFormat().format(data.currentPeriod.totalViews);
+                
+                const prev = data.previousPeriod.totalViews;
+                const curr = data.currentPeriod.totalViews;
+                let growthHTML = '<span style="color:#6b7280; font-size:1rem;">Kỳ trước: ' + new Intl.NumberFormat().format(prev) + '</span>';
+                if (prev > 0) {
+                    const pct = ((curr - prev)/prev*100).toFixed(1);
+                    if (pct > 0) growthHTML += '<br><span style="color:#15803d;">↑ +' + pct + '%</span>';
+                    else growthHTML += '<br><span style="color:#b91c1c;">↓ ' + pct + '%</span>';
+                } else if (curr > 0) {
+                    growthHTML += '<br><span style="color:#15803d;">↑ +100%</span>';
+                }
+                const growthEl = document.getElementById('ana-growth');
+                if (growthEl) growthEl.innerHTML = growthHTML;
+
+                // Render Sources
+                let srcHtml = '<table style="width:100%; border-collapse:collapse; font-size:14px;"><tr><th style="text-align:left; border-bottom:1px solid #e2e8f0; padding:8px 0;">Nguồn</th><th style="text-align:right; border-bottom:1px solid #e2e8f0; padding:8px 0;">Lượt xem</th></tr>';
+                (data.sources || []).forEach(function(s) {
+                    srcHtml += '<tr><td style="padding:8px 0; border-bottom:1px dashed #f1f5f9;">' + (s.referrer || 'Khác') + '</td><td style="text-align:right; padding:8px 0; border-bottom:1px dashed #f1f5f9; font-weight:bold;">' + new Intl.NumberFormat().format(s.total_views) + '</td></tr>';
+                });
+                srcHtml += '</table>';
+                if (!data.sources || data.sources.length === 0) srcHtml = 'Chưa có dữ liệu truy cập.';
+                const srcContainer = document.getElementById('ana-sources-container');
+                if (srcContainer) srcContainer.innerHTML = srcHtml;
+
+                // Render Products
+                let pdrHtml = '<div style="display:flex; flex-direction:column; gap:10px;">';
+                (data.topProducts || []).forEach(function(p) {
+                    const prod = (window.products || []).find(function(x) { return String(x.id) === String(p.product_id); });
+                    const name = prod ? prod.name : ('SP #' + p.product_id);
+                    const img = (prod && prod.imageUrl) ? '<img src="' + prod.imageUrl + '" style="width:30px; height:30px; object-fit:cover; border-radius:4px; margin-right:10px;">' : '';
+                    pdrHtml += '<div style="display:flex; justify-content:space-between; align-items:center; font-size:14px; border-bottom:1px dashed #f1f5f9; padding-bottom:8px;">' +
+                        '<div style="display:flex; align-items:center; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-right:10px;" title="' + name + '">' +
+                            img + '<span style="overflow:hidden; text-overflow:ellipsis;">' + name + '</span>' +
+                        '</div>' +
+                        '<div style="font-weight:bold; color:#2563eb;">' + new Intl.NumberFormat().format(p.total_views) + ' lượt xem</div>' +
+                    '</div>';
+                });
+                pdrHtml += '</div>';
+                if (!data.topProducts || data.topProducts.length === 0) pdrHtml = 'Chưa có dữ liệu sản phẩm.';
+                const prodContainer = document.getElementById('ana-products-container');
+                if (prodContainer) prodContainer.innerHTML = pdrHtml;
+
+            } catch (e) {
+                console.error(e);
+                showToast('Lỗi: ' + e.message, 'error');
+            }
         }
     </script>
     <style>
