@@ -652,7 +652,7 @@ app.get('/api/admin/analytics', authenticateToken, async (req, res) => {
         });
 
         const prodResult = await db.execute({
-            sql: `SELECT product_id, SUM(view_count) as total_views FROM daily_stats WHERE date >= ? AND date <= ? AND product_id != '' GROUP BY product_id ORDER BY total_views DESC LIMIT 20`,
+            sql: `SELECT product_id, SUM(view_count) as total_views FROM daily_stats WHERE date >= ? AND date <= ? AND product_id != '' GROUP BY product_id ORDER BY total_views DESC LIMIT 10`,
             args: [startDate, endDate]
         });
 

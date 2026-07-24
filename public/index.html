@@ -3150,17 +3150,41 @@
                 const srcContainer = document.getElementById('ana-sources-container');
                 if (srcContainer) srcContainer.innerHTML = srcHtml;
 
-                // Render Products
-                let pdrHtml = '<div style="display:flex; flex-direction:column; gap:10px;">';
-                (data.topProducts || []).forEach(function(p) {
-                    const prod = (window.products || []).find(function(x) { return String(x.id) === String(p.product_id); });
-                    const name = prod ? prod.name : ('SP #' + p.product_id);
-                    const img = (prod && prod.imageUrl) ? '<img src="' + prod.imageUrl + '" style="width:30px; height:30px; object-fit:cover; border-radius:4px; margin-right:10px;">' : '';
-                    pdrHtml += '<div style="display:flex; justify-content:space-between; align-items:center; font-size:14px; border-bottom:1px dashed #f1f5f9; padding-bottom:8px;">' +
-                        '<div style="display:flex; align-items:center; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-right:10px;" title="' + name + '">' +
-                            img + '<span style="overflow:hidden; text-overflow:ellipsis;">' + name + '</span>' +
+                // Render Products (Giới hạn Top 10)
+                let pdrHtml = '<div style="display:flex; flex-direction:column; gap:8px;">';
+                (data.topProducts || []).slice(0, 10).forEach(function(p, idx) {
+                    const rawId = String(p.product_id || '').trim();
+                    const cleanId = rawId.replace(/^SP/i, '');
+
+                    // Thuật toán match sản phẩm thông minh
+                    const prod = (window.products || []).find(function(x) {
+                        if (!x || !x.id) return false;
+                        const xId = String(x.id).trim();
+                        const xClean = xId.replace(/^SP/i, '');
+                        if (xId === rawId || xClean === cleanId || xId === cleanId || xClean === rawId) return true;
+                        if (rawId.includes('_') && rawId.split('_')[0].replace(/^SP/i, '') === xClean) return true;
+                        return false;
+                    });
+
+                    const name = prod ? prod.name : ('Sản phẩm #' + (cleanId || rawId));
+                    const imgUrl = (prod && prod.imageUrl) ? prod.imageUrl : '';
+                    const imgHtml = imgUrl ? 
+                        '<img src="' + imgUrl + '" style="width:34px; height:34px; object-fit:cover; border-radius:6px; margin-right:10px; flex-shrink:0;">' : 
+                        '<div style="width:34px; height:34px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; margin-right:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#3b82f6; font-size:11px;">#' + (idx+1) + '</div>';
+
+                    const targetId = prod ? prod.id : (cleanId || rawId);
+                    const clickAttr = 'onclick="closeModal(\'adminModal\'); openDetailModal(\'' + targetId + '\');" style="cursor:pointer;"';
+
+                    pdrHtml += '<div ' + clickAttr + ' style="display:flex; justify-content:space-between; align-items:center; font-size:14px; border-bottom:1px dashed #f1f5f9; padding:6px 8px; border-radius:6px; transition:0.2s;" onmouseover="this.style.background=\'#eff6ff\'" onmouseout="this.style.background=\'transparent\'">' +
+                        '<div style="display:flex; align-items:center; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-right:10px;">' +
+                            '<span style="font-weight:bold; color:#94a3b8; width:20px; font-size:12px; flex-shrink:0;">' + (idx+1) + '.</span>' +
+                            imgHtml + 
+                            '<div style="display:flex; flex-direction:column; overflow:hidden;">' +
+                                '<span style="font-weight:600; color:#1e293b; overflow:hidden; text-overflow:ellipsis;" title="' + name + '">' + name + '</span>' +
+                                '<span style="font-size:11px; color:#2563eb; font-weight:500;">🔗 Bấm để xem chi tiết</span>' +
+                            '</div>' +
                         '</div>' +
-                        '<div style="font-weight:bold; color:#2563eb;">' + new Intl.NumberFormat().format(p.total_views) + ' lượt xem</div>' +
+                        '<div style="font-weight:bold; color:#2563eb; white-space:nowrap; background:#eff6ff; padding:3px 8px; border-radius:12px; font-size:13px; flex-shrink:0;">' + new Intl.NumberFormat().format(p.total_views) + ' lượt xem</div>' +
                     '</div>';
                 });
                 pdrHtml += '</div>';
