@@ -2460,7 +2460,7 @@ Trả về kết quả duy nhất 1 mảng JSON array: [{"keyword": "...", "reas
                 const sugResp = await fetch('https://api.deepseek.com/chat/completions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                    body: JSON.stringify({ model: 'deepseek-v4-pro', messages: [{ role: 'user', content: suggestPrompt }], temperature: 0.7 })
+                    body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: suggestPrompt }], temperature: 0.7 })
                 });
                 const sugData = await sugResp.json();
                 const text = sugData.choices?.[0]?.message?.content || '[]';
@@ -2596,7 +2596,7 @@ YÊU CẦU SEO CHI TIẾT:
         let response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-            body: JSON.stringify({ model: 'deepseek-v4-pro', messages: [{ role: 'user', content: prompt }], temperature: 0.7 })
+            body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }], temperature: 0.7 })
         });
         let data = await response.json();
         if (data.error) {
@@ -2659,6 +2659,7 @@ YÊU CẦU SEO CHI TIẾT:
 }
 
 app.post('/api/admin/blog/auto-trigger', authenticateToken, async (req, res) => {
+    isAutoBlogRunning = false; // Reset lock cho trigger thủ công từ Admin CP
     const host = req.headers['x-forwarded-host'] || req.headers.host || 'donghangtietkiem.com';
     const result = await executeAutoBlogCycle(host);
     if (result.error) return res.status(400).json({ error: result.error });
