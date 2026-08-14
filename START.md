@@ -16,4 +16,5 @@
 ## 📝 Nhật Ký Sprint
 - **Sprint 1 (Hoàn thành)**: Vá lỗ hổng bảo mật API, tách settings private, tích hợp Turso CSDL Cloud.
 - **Sprint 2 (Hoàn thành)**: Đồng bộ mã đơn POS Pancake V2 trả về giao diện người dùng, bổ sung Rate Limiter.
-- **Sprint 3 (Hiện tại)**: Giám sát deployment tự động từ GitHub sang Vercel, kiểm thử luồng CI/CD Auto-Deploy.
+- **Sprint 3 (Hoàn thành)**: Giám sát deployment tự động từ GitHub sang Vercel, kiểm thử luồng CI/CD Auto-Deploy.
+- **Sprint 4 (Hiện tại)**: Khắc phục lỗi tự động nộp Google Indexing API & tự động cập nhật mốc thời gian indexed_at vào CSDL khi xuất bản bài viết.
