@@ -2048,7 +2048,7 @@ app.post('/api/admin/blog/enrich-images', authenticateToken, async (req, res) =>
 // 9.6 ADMIN: AUTO-BLOG SCHEDULER & CRON WORKER
 app.get('/api/admin/blog/auto-config', authenticateToken, async (req, res) => {
     try {
-        const result = await db.execute("SELECT key, value FROM settings WHERE key IN ('autoBlogSchedule', 'autoBlogAutoSuggest', 'autoBlogAutoPublish', 'autoBlogLastRun')");
+        const result = await db.execute("SELECT key, value FROM settings WHERE key IN ('autoBlogSchedule', 'autoBlogAutoSuggest', 'autoBlogAutoPublish', 'autoBlogLastRun', 'autoBlogSuggestPrompt', 'autoBlogPostPrompt')");
         const configMap = {};
         (result.rows || []).forEach(r => { configMap[r.key] = r.value; });
 
@@ -2085,6 +2085,8 @@ app.get('/api/admin/blog/auto-config', authenticateToken, async (req, res) => {
             schedule,
             autoSuggest: configMap['autoBlogAutoSuggest'] !== 'false',
             autoPublish: configMap['autoBlogAutoPublish'] !== 'false',
+            customSuggestPrompt: configMap['autoBlogSuggestPrompt'] || '',
+            customPostPrompt: configMap['autoBlogPostPrompt'] || '',
             lastRun: lastRunStr,
             nextRun,
             recentPosts: recentRes.rows || [],
@@ -2098,7 +2100,7 @@ app.get('/api/admin/blog/auto-config', authenticateToken, async (req, res) => {
 
 app.post('/api/admin/blog/auto-config', authenticateToken, async (req, res) => {
     try {
-        const { schedule, autoSuggest, autoPublish } = req.body;
+        const { schedule, autoSuggest, autoPublish, customSuggestPrompt, customPostPrompt } = req.body;
         const validSchedules = ['off', '8h', '12h', '24h'];
         const schedVal = validSchedules.includes(schedule) ? schedule : 'off';
         const suggestVal = autoSuggest ? 'true' : 'false';
@@ -2107,7 +2109,9 @@ app.post('/api/admin/blog/auto-config', authenticateToken, async (req, res) => {
         await db.executeBatch([
             { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('autoBlogSchedule', ?)", args: [schedVal] },
             { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('autoBlogAutoSuggest', ?)", args: [suggestVal] },
-            { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('autoBlogAutoPublish', ?)", args: [publishVal] }
+            { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('autoBlogAutoPublish', ?)", args: [publishVal] },
+            { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('autoBlogSuggestPrompt', ?)", args: [customSuggestPrompt || ''] },
+            { sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('autoBlogPostPrompt', ?)", args: [customPostPrompt || ''] }
         ]);
 
         res.json({ success: true, schedule: schedVal, autoSuggest: suggestVal === 'true', autoPublish: publishVal === 'true' });
@@ -2123,9 +2127,9 @@ async function executeAutoBlogCycle(host = 'thohong.top') {
     isAutoBlogRunning = true;
 
     try {
-        const settingsResult = await db.execute("SELECT key, value FROM settings WHERE key IN ('deepseekApiKey', 'storeName', 'autoBlogAutoSuggest', 'autoBlogAutoPublish')");
+        const settingsResult = await db.execute("SELECT key, value FROM settings WHERE key IN ('deepseekApiKey', 'storeName', 'autoBlogAutoSuggest', 'autoBlogAutoPublish', 'autoBlogSuggestPrompt', 'autoBlogPostPrompt')");
         const settingsMap = {};
-        (settingsResult.rows || []).forEach(r => { settingsMap[r.key] = r.value; });
+        (result.rows || []).forEach(r => { settingsMap[r.key] = r.value; });
 
         const apiKey = settingsMap['deepseekApiKey'];
         if (!apiKey) return { error: 'Chưa cấu hình DeepSeek API Key trong Admin Settings.' };
@@ -2147,10 +2151,15 @@ async function executeAutoBlogCycle(host = 'thohong.top') {
             const productsResult = await db.execute("SELECT DISTINCT category FROM products WHERE status = 'active' OR status IS NULL OR status = '' LIMIT 30");
             const categories = (productsResult.rows || []).map(r => r.category).filter(Boolean);
 
-            const suggestPrompt = `Bạn là chuyên gia SEO hàng đầu cho website e-commerce Việt Nam.
+            let suggestPrompt = settingsMap['autoBlogSuggestPrompt'] || '';
+            if (!suggestPrompt.trim()) {
+                suggestPrompt = `Bạn là chuyên gia SEO hàng đầu cho website e-commerce Việt Nam.
 Cửa hàng "${storeName}" chuyên kinh doanh các nhóm ngành hàng: ${categories.join(', ')}.
 Hãy gợi ý 10 từ khóa SEO tiềm năng nhất cho blog của cửa hàng.
 Trả về kết quả duy nhất 1 mảng JSON array: [{"keyword": "...", "reason": "...", "difficulty": "Dễ|Trung bình|Khó"}]`;
+            } else {
+                suggestPrompt = suggestPrompt.replace(/\${storeName}/g, storeName).replace(/\${categories}/g, categories.join(', '));
+            }
 
             try {
                 const sugResp = await fetch('https://api.deepseek.com/chat/completions', {
@@ -2254,7 +2263,9 @@ Trả về kết quả duy nhất 1 mảng JSON array: [{"keyword": "...", "reas
             ? availableImages.map((img, idx) => `Ảnh ${idx + 1}: ${img.url} (Sản phẩm: ${img.productName})`).join('\n')
             : 'Không có danh sách hình ảnh.';
 
-        const prompt = `Bạn là nhà báo chuyên nghiệp và chuyên gia SEO thương mại điện tử Việt Nam.
+        let prompt = settingsMap['autoBlogPostPrompt'] || '';
+        if (!prompt.trim()) {
+            prompt = `Bạn là nhà báo chuyên nghiệp và chuyên gia SEO thương mại điện tử Việt Nam.
 Hãy viết 1 bài blog chất lượng cao chuẩn SEO cho cửa hàng "${storeName}" dựa trên từ khóa chính: "${keyword}".
 
 DANH SÁCH SẢN PHẨM HIỆN CÓ TẠI CỬA HÀNG ĐỂ CHÈN INTERNAL LINK:
@@ -2279,6 +2290,13 @@ YÊU CẦU SEO CHI TIẾT:
 [Viết đoạn tóm tắt Meta Description chuẩn SEO từ 120-150 ký tự chứa từ khóa]
 ##CONTENT##
 [Nội dung bài viết chi tiết bằng định dạng Markdown chứa 3 hình ảnh sản phẩm]`;
+        } else {
+            prompt = prompt
+                .replace(/\${storeName}/g, storeName)
+                .replace(/\${keyword}/g, keyword)
+                .replace(/\${productsList}/g, productsList || 'Không có danh sách sản phẩm cụ thể.')
+                .replace(/\${imagesListPrompt}/g, imagesListPrompt);
+        }
 
         let response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
