@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
@@ -24,7 +25,8 @@ const ALLOWED_ORIGINS = [
     'https://thohong.vercel.app',
     'https://thohong.top',
     'https://www.thohong.top',
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'http://localhost:3500'
 ];
 app.use(cors({
     origin: (origin, callback) => {
@@ -2735,15 +2737,15 @@ app.get('*', (req, res, next) => {
 
 // START EXPRESS SERVER OR EXPORT FOR VERCEL
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-    initDB().then(() => {
+    initDB().catch(err => {
+        console.warn('⚠️ Warning: DB Initialization (Turso Cloud):', err.message);
+    }).finally(() => {
         app.listen(PORT, () => {
             console.log(`==================================================`);
             console.log(`🚀 SERVER RUNNING AT: http://localhost:${PORT}`);
             console.log(`🔑 Default Admin: admin | dhtk2024`);
             console.log(`==================================================`);
         });
-    }).catch(err => {
-        console.error('Failed to initialize database:', err);
     });
 } else {
     // Trên Vercel: Bỏ qua initDB tự động để tránh 8 truy vấn lặp lại gây trễ cold start
