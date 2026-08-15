@@ -17,4 +17,4 @@
 - **Sprint 1 (Hoàn thành)**: Vá lỗ hổng bảo mật API, tách settings private, tích hợp Turso CSDL Cloud.
 - **Sprint 2 (Hoàn thành)**: Đồng bộ mã đơn POS Pancake V2 trả về giao diện người dùng, bổ sung Rate Limiter.
 - **Sprint 3 (Hoàn thành)**: Giám sát deployment tự động từ GitHub sang Vercel, kiểm thử luồng CI/CD Auto-Deploy.
-- **Sprint 4 (Hoàn thành)**: Khắc phục lỗi tự động nộp Google Indexing API & tự động cập nhật mốc thời gian indexed_at; Bổ sung cột Telegram SEO Status và nút ✈️ Share Telegram Hàng Loạt cho bài viết.
+- **Sprint 4 (Hoàn thành)**: Khắc phục lỗi tự động nộp Google Indexing API & tự động cập nhật mốc thời gian indexed_at; Bổ sung cột Telegram SEO Status, nút ✈️ Share Telegram Hàng Loạt và sửa lỗi đóng khối ngoặc render bảng Telegram Tab.
