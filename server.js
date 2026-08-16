@@ -642,14 +642,25 @@ function getTopicCategoryKeywords(topic) {
 }
 
 
+function sanitizeImageUrl(url) {
+    if (!url) return '';
+    let u = String(url).trim();
+    if (!u.startsWith('http')) {
+        u = `https://dhtk.vercel.app${u.startsWith('/') ? '' : '/'}${u}`;
+    }
+    u = u.replace(/^https?:\/\/(www\.)?thohong\.top\/media__/gi, 'https://dhtk.vercel.app/media__');
+    u = u.replace(/^https?:\/\/(www\.)?thohong\.vercel\.app\/media__/gi, 'https://dhtk.vercel.app/media__');
+    return u;
+}
+
 async function extractBlogImages(blogData) {
     let images = [];
     
     // 1. Trích xuất ảnh bìa của bài viết (Ưu tiên cao nhất)
     let coverImg = blogData.cover_image || blogData.image || '';
     if (coverImg) {
-        if (!coverImg.startsWith('http')) coverImg = `https://dhtk.vercel.app${coverImg.startsWith('/') ? '' : '/'}${coverImg}`;
-        images.push(coverImg);
+        coverImg = sanitizeImageUrl(coverImg);
+        if (coverImg) images.push(coverImg);
     }
 
     // 2. Trích xuất tất cả ảnh nằm trong nội dung HTML của bài viết
@@ -659,8 +670,8 @@ async function extractBlogImages(blogData) {
         while ((match = imgRegex.exec(blogData.content)) !== null) {
             let src = match[1];
             if (src) {
-                if (!src.startsWith('http')) src = `https://dhtk.vercel.app${src.startsWith('/') ? '' : '/'}${src}`;
-                if (!images.includes(src)) images.push(src);
+                src = sanitizeImageUrl(src);
+                if (src && !images.includes(src)) images.push(src);
             }
         }
     }
@@ -765,6 +776,7 @@ async function triggerMakeWebhook(blogData, isManual = false) {
             image4: imagesList[3] || imagesList[0],
             images: imagesList,
             facebook_photos: imagesList.map(url => ({ url: url, type: 'url', photo: url })),
+            dhtk_facebook_photos: imagesList.map(url => ({ url: url, type: 'url', photo: url })),
             hashtags: smartHashtags,
             formatted_content: formattedContent,
             created_at: blogData.created_at || new Date().toISOString()
