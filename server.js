@@ -739,7 +739,7 @@ async function triggerMakeWebhook(blogData, isManual = false) {
         let rawSlug = String(blogData.slug || blogData.id || '').trim();
         rawSlug = rawSlug.replace(/^https?:\/\/[^\/]+/i, '').replace(/^\/?blog\/?/i, '').replace(/^\/+/, '');
         let cleanSlug = rawSlug;
-        let finalLink = `https://thohong.top/blog/${rawSlug}`;
+        let finalLink = `https://donghangtietkiem.com/blog/${rawSlug}`;
 
         const imagesList = await extractBlogImages(blogData);
         let finalImage = imagesList[0];
@@ -754,20 +754,8 @@ async function triggerMakeWebhook(blogData, isManual = false) {
 
         const formattedContent = `📌 ${blogData.title || ''}\n\n📝 ${cleanExcerpt}\n\n👉 Đọc bài viết chi tiết tại đây:\n${finalLink}\n\n${smartHashtags}`;
 
-        // Đảm bảo 100% mảng facebook_photos chứa các URL ảnh CDN sống vĩnh viễn không bao giờ bị 404
-        const fbCdnStockList = [
-            'https://images.unsplash.com/photo-1556740738-b6a63e27c4df?w=800&auto=format&fit=crop&q=80',
-            'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=800&auto=format&fit=crop&q=80',
-            'https://images.unsplash.com/photo-1628102491629-77858ab216b2?w=800&auto=format&fit=crop&q=80',
-            'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=800&auto=format&fit=crop&q=80'
-        ];
-
-        let fbPhotosList = imagesList.map((url, idx) => {
-            let validUrl = url;
-            if (!validUrl.startsWith('https://images.unsplash.com')) {
-                validUrl = fbCdnStockList[idx % fbCdnStockList.length];
-            }
-            return { type: 'url', photo: validUrl, url: validUrl };
+        let fbPhotosList = imagesList.map((url) => {
+            return { type: 'url', photo: url, url: url };
         });
 
         const payload = {
@@ -776,14 +764,14 @@ async function triggerMakeWebhook(blogData, isManual = false) {
             slug: cleanSlug || 'mau-bai-viet-thu-nghiem',
             excerpt: cleanExcerpt,
             link: finalLink,
-            image: fbCdnStockList[0],
+            image: imagesList[0],
             image1: imagesList[0],
             image2: imagesList[1] || imagesList[0],
             image3: imagesList[2] || imagesList[0],
             image4: imagesList[3] || imagesList[0],
             images: imagesList,
             facebook_photos: fbPhotosList,
-            facebook_photo_url: fbCdnStockList[0],
+            facebook_photo_url: imagesList[0],
             hashtags: smartHashtags,
             formatted_content: formattedContent,
             created_at: blogData.created_at || new Date().toISOString()
@@ -884,6 +872,8 @@ app.post('/api/admin/social/make-share-batch', authenticateToken, async (req, re
         for (const post of unsharedPosts) {
             const r = await triggerMakeWebhook(post, true);
             if (r.success) count++;
+            // Thêm delay 5 phút (300000ms) giữa các bài viết theo yêu cầu
+            await new Promise(resolve => setTimeout(resolve, 300000));
         }
 
         res.json({ success: true, message: `⚡ Đã gửi hàng loạt ${count}/${unsharedPosts.length} bài viết sang Make.com Webhook thành công!` });
