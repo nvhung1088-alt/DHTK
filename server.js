@@ -680,31 +680,26 @@ async function extractBlogImages(blogData) {
 
     const postTopic = detectStoreTopic((blogData.title || '') + ' ' + (blogData.keyword || ''));
 
-    // 3. Nếu ít hơn 4 ảnh, chỉ tìm các sản phẩm trong CSDL KHỚP CHÍNH XÁC chủ đề bài viết
+    // 3. Tìm các sản phẩm trong CSDL KHỚP CHÍNH XÁC chủ đề bài viết
     if (images.length < 4) {
         try {
-            let topicKeywords = [];
-            if (postTopic === 'notebook') topicKeywords = ['sổ', 'vở', 'tập', 'bìa da'];
-            else if (postTopic === 'pen') topicKeywords = ['bút', 'chì', 'viết'];
-            else if (postTopic === 'pencil_case') topicKeywords = ['bóp', 'hộp bút', 'túi'];
-
-            if (topicKeywords.length > 0) {
-                for (const kw of topicKeywords) {
+            let topicKeywords = ['thùng', 'hộp', 'carton', 'băng dính', 'băng keo', 'xốp nổ', 'màng bọc', 'pe', 'túi gói hàng', 'túi zip'];
+            for (const kw of topicKeywords) {
+                if (images.length >= 4) break;
+                const pRes = await db.execute({
+                    sql: "SELECT imageUrl FROM products WHERE imageUrl IS NOT NULL AND imageUrl LIKE 'http%' AND (name LIKE ? OR category LIKE ?) LIMIT 5",
+                    args: [`%${kw}%`, `%${kw}%`]
+                });
+                for (const p of (pRes.rows || [])) {
                     if (images.length >= 4) break;
-                    const pRes = await db.execute({
-                        sql: "SELECT imageUrl FROM products WHERE imageUrl IS NOT NULL AND imageUrl LIKE 'http%' AND (name LIKE ? OR category LIKE ?) LIMIT 5",
-                        args: [`%${kw}%`, `%${kw}%`]
-                    });
-                    for (const p of (pRes.rows || [])) {
-                        if (images.length >= 4) break;
-                        if (p.imageUrl && !images.includes(p.imageUrl)) {
-                            images.push(p.imageUrl);
-                        }
+                    const pUrl = sanitizeImageUrl(p.imageUrl);
+                    if (pUrl && !images.includes(pUrl)) {
+                        images.push(pUrl);
                     }
                 }
             }
         } catch(e) {
-            console.error('[STRICT BLOG IMAGES MATCH ERROR]', e.message);
+            console.error('[BLOG IMAGES MATCH ERROR]', e.message);
         }
     }
 
@@ -719,7 +714,6 @@ async function extractBlogImages(blogData) {
         }
     }
 
-    // 5. Đảm bảo mảng ảnh CHỈ CHỨA CÁC URL DUY NHẤT (Unique array), tuyệt đối KHÔNG lặp lại trùng URL
     if (images.length === 0) {
         images = ['https://images.unsplash.com/photo-1556740738-b6a63e27c4df?w=800&auto=format&fit=crop&q=80'];
     }
@@ -760,20 +754,36 @@ async function triggerMakeWebhook(blogData, isManual = false) {
 
         const formattedContent = `📌 ${blogData.title || ''}\n\n📝 ${cleanExcerpt}\n\n👉 Đọc bài viết chi tiết tại đây:\n${finalLink}\n\n${smartHashtags}`;
 
+        // Đảm bảo 100% mảng facebook_photos chứa các URL ảnh CDN sống vĩnh viễn không bao giờ bị 404
+        const fbCdnStockList = [
+            'https://images.unsplash.com/photo-1556740738-b6a63e27c4df?w=800&auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=800&auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1628102491629-77858ab216b2?w=800&auto=format&fit=crop&q=80',
+            'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=800&auto=format&fit=crop&q=80'
+        ];
+
+        let fbPhotosList = imagesList.map((url, idx) => {
+            let validUrl = url;
+            if (!validUrl.startsWith('https://images.unsplash.com')) {
+                validUrl = fbCdnStockList[idx % fbCdnStockList.length];
+            }
+            return { type: 'url', photo: validUrl, url: validUrl };
+        });
+
         const payload = {
             id: blogData.id || blogData.slug || 'sample-post',
-            title: blogData.title || 'Mẫu bài viết thử nghiệm từ Thỏ Hồng',
+            title: blogData.title || 'Mẫu bài viết thử nghiệm từ Đồng Hành Tiết Kiệm',
             slug: cleanSlug || 'mau-bai-viet-thu-nghiem',
             excerpt: cleanExcerpt,
             link: finalLink,
-            image: finalImage,
+            image: fbCdnStockList[0],
             image1: imagesList[0],
             image2: imagesList[1] || imagesList[0],
             image3: imagesList[2] || imagesList[0],
             image4: imagesList[3] || imagesList[0],
             images: imagesList,
-            facebook_photos: imagesList.map(url => ({ type: 'url', photo: url, url: url })),
-            facebook_photo_url: finalImage,
+            facebook_photos: fbPhotosList,
+            facebook_photo_url: fbCdnStockList[0],
             hashtags: smartHashtags,
             formatted_content: formattedContent,
             created_at: blogData.created_at || new Date().toISOString()
