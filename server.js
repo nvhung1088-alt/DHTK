@@ -593,42 +593,54 @@ function generateSmartHashtags(blogData) {
     return tags.slice(0, 5).join(' ');
 }
 
-const STATIONERY_STOCK_IMAGES = {
-    notebook: [
-        'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1585776245991-cf89dd7fc73a?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1517842645767-c639042777db?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=800&auto=format&fit=crop&q=80'
+const STORE_STOCK_IMAGES = {
+    packaging_supplies: [
+        'https://images.unsplash.com/photo-1556740738-b6a63e27c4df?w=800&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=800&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1628102491629-77858ab216b2?w=800&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=800&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1580674684081-77673e735bf4?w=800&auto=format&fit=crop&q=80'
     ],
-    pen: [
-        'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1585336261026-6757c54e3809?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1569683795645-b62e50fbf103?w=800&auto=format&fit=crop&q=80'
-    ],
-    pencil_case: [
-        'https://images.unsplash.com/photo-1595053826286-2e5a37421e59?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=800&auto=format&fit=crop&q=80'
-    ],
-    office: [
-        'https://images.unsplash.com/photo-1456735190827-d1262f71b8a3?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800&auto=format&fit=crop&q=80'
-    ],
-    stationery_general: [
-        'https://images.unsplash.com/photo-1456735190827-d1262f71b8a3?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=800&auto=format&fit=crop&q=80'
+    general: [
+        'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1607082349566-187342175e2f?w=800&auto=format&fit=crop&q=80'
     ]
 };
 
-function detectStationeryTopic(text) {
-    const slug = toAsciiSlug(text || '');
-    if (/\b(but|chi|viet|da|highlight|marker|pen|gel|ngoi|muc)\b/i.test(slug) || /but|pen|gel|ngoi/i.test(slug)) return 'pen';
-    if (/\b(so|vo|tap|bia-da|giay|journal|planner|notebook|so-tay)\b/i.test(slug) || /so-|notebook|vo-/i.test(slug)) return 'notebook';
-    if (/\b(bop|hop-but|tui|pencil-case|pouch)\b/i.test(slug) || /hop-but|pencil/i.test(slug)) return 'pencil_case';
-    if (/\b(keo|kep|thuoc|dan|ho|ghim|may-tinh|trinh-ky|office)\b/i.test(slug)) return 'office';
-    return 'stationery_general';
+function detectStoreTopic(text) {
+    return 'packaging_supplies';
+}
+
+function buildSmartSearchTerms(keyword, topic) {
+    const lower = (keyword || '').toLowerCase().trim();
+    const words = lower.split(/\s+/).filter(w => w.length > 1);
+    
+    const stopwords = ['bán','buôn','mua','giá','sỉ','lẻ','tại','của','và','cho',
+                       'các','những','này','đó','rất','nhất','tốt','đẹp','hay',
+                       'hướng','dẫn','kinh','nghiệm','cách','chọn','top','nên'];
+    const meaningfulWords = words.filter(w => !stopwords.includes(w) && w.length > 1);
+    
+    const phrases = [];
+    if (meaningfulWords.length >= 2) {
+        phrases.push(meaningfulWords.join(' '));
+    }
+    for (let i = 0; i < meaningfulWords.length - 2; i++) {
+        phrases.push(meaningfulWords.slice(i, i + 3).join(' '));
+    }
+    
+    const bigrams = [];
+    for (let i = 0; i < meaningfulWords.length - 1; i++) {
+        bigrams.push(meaningfulWords.slice(i, i + 2).join(' '));
+    }
+    meaningfulWords.filter(w => w.length > 2).forEach(w => {
+        if (!bigrams.includes(w)) bigrams.push(w);
+    });
+    
+    return { phrases, bigrams };
+}
+
+function getTopicCategoryKeywords(topic) {
+    return ['thùng', 'hộp', 'carton', 'băng dính', 'băng keo', 'xốp nổ', 'màng bọc', 'pe', 'túi gói hàng', 'túi zip'];
 }
 
 
@@ -655,7 +667,7 @@ async function extractBlogImages(blogData) {
         }
     }
 
-    const postTopic = detectStationeryTopic((blogData.title || '') + ' ' + (blogData.keyword || ''));
+    const postTopic = detectStoreTopic((blogData.title || '') + ' ' + (blogData.keyword || ''));
 
     // 3. Nếu ít hơn 4 ảnh, chỉ tìm các sản phẩm trong CSDL KHỚP CHÍNH XÁC chủ đề bài viết
     if (images.length < 4) {
@@ -687,7 +699,7 @@ async function extractBlogImages(blogData) {
 
     // 4. Nếu vẫn ít hơn 4 ảnh, bổ sung các ảnh kho mẫu cao cấp CHUẨN CÙNG CHỦ ĐỀ (Unsplash HD)
     if (images.length < 4) {
-        const stockList = STATIONERY_STOCK_IMAGES[postTopic] || STATIONERY_STOCK_IMAGES['stationery_general'];
+        const stockList = STORE_STOCK_IMAGES[postTopic] || STORE_STOCK_IMAGES['general'];
         for (const stockUrl of stockList) {
             if (images.length >= 4) break;
             if (!images.includes(stockUrl)) {
@@ -2511,20 +2523,23 @@ app.post('/api/admin/blog/suggest-keywords', authenticateToken, async (req, res)
         const categories = productsResult.rows.map(r => r.category).filter(Boolean);
         const storeName = settingsMap['storeName'] || 'Thỏ Hồng / ĐHTK';
 
-        const prompt = `Bạn là chuyên gia SEO hàng đầu cho website e-commerce Việt Nam.
-Cửa hàng "${storeName}" chuyên kinh doanh các nhóm ngành hàng: ${categories.join(', ')}.
+        const prompt = `Bạn là chuyên gia SEO hàng đầu cho website e-commerce Việt Nam chuyên bán sỉ/lẻ.
+Cửa hàng "${storeName}" kinh doanh tại Tổng Kho, chuyên cung cấp: Vật tư đóng gói, thùng carton, băng dính, xốp nổ...
+Đối tượng khách hàng: Chủ shop online, người bán hàng Shopee/TikTok Shop cần mua vật tư đóng gói giá sỉ.
 
-Hãy gợi ý 10 từ khóa SEO tiềm năng nhất cho blog của cửa hàng.
-Mỗi từ khóa phải:
-- Có nhu cầu tìm kiếm cao từ khách hàng mua sỉ/lẻ Việt Nam
-- Dễ xếp hạng trang 1 Google (tập trung từ khóa ngách/long-tail)
-- Phù hợp với sản phẩm/ngành hàng cửa hàng đang bán
+Hãy gợi ý 10 từ khóa SEO long-tail tiềm năng nhất. MỖI TỪ KHÓA PHẢI:
+- Là cụm từ 4-8 từ, mô tả cụ thể sản phẩm hoặc nhu cầu mua sỉ (ví dụ: "nguồn sỉ thùng carton đóng hàng shopee", "xưởng sản xuất xốp chống sốc giá rẻ")
+- Có search intent rõ ràng (mua hàng, tìm nguồn sỉ, so sánh giá)
+- TUYỆT ĐỐI KHÔNG gợi ý từ khóa về ngành hàng khác (chỉ liên quan vật tư đóng gói)
 
-Trả về kết quả dưới dạng duy nhất một mảng JSON array, mỗi phần tử có định dạng:
-[
-  {"keyword": "từ khóa SEO", "reason": "lý do chọn từ khóa", "difficulty": "Dễ|Trung bình|Khó"}
-]
-CHỈ trả về JSON array, không viết thêm lời dẫn hay giải thích.`;
+ĐA DẠNG hóa từ khóa qua 3 nhóm intent:
+- 3-4 từ khóa "mua sỉ/nhập hàng" (ví dụ: "nhập sỉ túi gói hàng niêm phong")
+- 3-4 từ khóa "hướng dẫn/review" (ví dụ: "cách gói hàng quần áo gửi bưu điện")  
+- 2-3 từ khóa "so sánh/kinh nghiệm" (ví dụ: "kinh nghiệm tối ưu chi phí đóng gói")
+
+Trả về duy nhất 1 mảng JSON array:
+[{"keyword": "...", "reason": "...", "difficulty": "Dễ|Trung bình|Khó"}]
+CHỈ trả về JSON, không viết thêm.`;
 
         let response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
@@ -2638,24 +2653,17 @@ app.post('/api/admin/blog/generate', authenticateToken, async (req, res) => {
         const storeName = settingsMap['storeName'] || 'Thỏ Hồng / ĐHTK';
 
         // 1. Phân tích từ khóa để lọc 5 sản phẩm khớp chính xác nhất từ CSDL kho hàng
-        const postTopic = detectStationeryTopic(keyword);
-        let topicKeywords = [];
-        if (postTopic === 'notebook') topicKeywords = ['sổ', 'vở', 'tập', 'bìa da', 'giấy'];
-        else if (postTopic === 'pen') topicKeywords = ['bút', 'chì', 'viết', 'dạ', 'gel', 'marker'];
-        else if (postTopic === 'pencil_case') topicKeywords = ['bóp', 'hộp bút', 'túi', 'pouch'];
-
-        const rawWords = String(keyword || '').split(/\s+/).filter(w => w.length > 2);
-        rawWords.forEach(w => {
-            if (!topicKeywords.includes(w.toLowerCase())) topicKeywords.push(w.toLowerCase());
-        });
-
+        const postTopic = detectStoreTopic(keyword);
+        const searchTerms = buildSmartSearchTerms(keyword, postTopic);
         let matchedProductsMap = new Map();
-        for (const kw of topicKeywords) {
+
+        // TẦNG 1: Exact Phrase Match
+        for (const phrase of searchTerms.phrases) {
             if (matchedProductsMap.size >= 5) break;
             try {
                 const pRes = await db.execute({
-                    sql: "SELECT id, name, category, price, imageUrl, details FROM products WHERE (status = 'active' OR status IS NULL OR status = '') AND imageUrl IS NOT NULL AND imageUrl != '' AND (name LIKE ? OR category LIKE ?) LIMIT 5",
-                    args: [`%${kw}%`, `%${kw}%`]
+                    sql: "SELECT id, name, category, price, imageUrl, details FROM products WHERE (status = 'active' OR status IS NULL OR status = '') AND imageUrl IS NOT NULL AND imageUrl != '' AND (LOWER(name) LIKE ? OR LOWER(category) LIKE ?) LIMIT 5",
+                    args: [`%${phrase}%`, `%${phrase}%`]
                 });
                 (pRes.rows || []).forEach(p => {
                     if (matchedProductsMap.size < 5 && !matchedProductsMap.has(p.id)) {
@@ -2665,7 +2673,42 @@ app.post('/api/admin/blog/generate', authenticateToken, async (req, res) => {
             } catch(err) {}
         }
 
-        // Không dùng fallback lấy ngẫu nhiên 5 sản phẩm để tránh nhầm sản phẩm không liên quan
+        // TẦNG 2: Bigram & Category Match
+        if (matchedProductsMap.size < 5) {
+            for (const bigram of searchTerms.bigrams) {
+                if (matchedProductsMap.size >= 5) break;
+                try {
+                    const pRes = await db.execute({
+                        sql: "SELECT id, name, category, price, imageUrl, details FROM products WHERE (status = 'active' OR status IS NULL OR status = '') AND imageUrl IS NOT NULL AND imageUrl != '' AND (LOWER(name) LIKE ? OR LOWER(category) LIKE ?) LIMIT 5",
+                        args: [`%${bigram}%`, `%${bigram}%`]
+                    });
+                    (pRes.rows || []).forEach(p => {
+                        if (matchedProductsMap.size < 5 && !matchedProductsMap.has(p.id)) {
+                            matchedProductsMap.set(p.id, p);
+                        }
+                    });
+                } catch(err) {}
+            }
+        }
+
+        // TẦNG 3: Category Fallback
+        if (matchedProductsMap.size < 3) {
+            const catKeywords = getTopicCategoryKeywords(postTopic);
+            for (const catKw of catKeywords) {
+                if (matchedProductsMap.size >= 5) break;
+                try {
+                    const pRes = await db.execute({
+                        sql: "SELECT id, name, category, price, imageUrl, details FROM products WHERE (status = 'active' OR status IS NULL OR status = '') AND imageUrl IS NOT NULL AND imageUrl != '' AND (LOWER(name) LIKE ? OR LOWER(category) LIKE ?) ORDER BY RANDOM() LIMIT 5",
+                        args: [`%${catKw}%`, `%${catKw}%`]
+                    });
+                    (pRes.rows || []).forEach(p => {
+                        if (matchedProductsMap.size < 5 && !matchedProductsMap.has(p.id)) {
+                            matchedProductsMap.set(p.id, p);
+                        }
+                    });
+                } catch(err) {}
+            }
+        }
 
 
         const selectedProducts = Array.from(matchedProductsMap.values());
@@ -2705,7 +2748,7 @@ app.post('/api/admin/blog/generate', authenticateToken, async (req, res) => {
         }).join('\n');
 
         if (availableImages.length < 3) {
-            const stockList = STATIONERY_STOCK_IMAGES[postTopic] || STATIONERY_STOCK_IMAGES['stationery_general'];
+            const stockList = STORE_STOCK_IMAGES[postTopic] || STORE_STOCK_IMAGES['general'];
             for (const stockUrl of stockList) {
                 if (availableImages.length >= 5) break;
                 if (!availableImages.some(i => i.url === stockUrl)) {
@@ -2718,34 +2761,55 @@ app.post('/api/admin/blog/generate', authenticateToken, async (req, res) => {
             ? availableImages.map((img, idx) => `Ảnh ${idx + 1}: ${img.url} (Sản phẩm: ${img.productName})`).join('\n')
             : 'Không có danh sách hình ảnh.';
 
-        const prompt = `Bạn là nhà báo chuyên nghiệp và chuyên gia SEO thương mại điện tử Việt Nam.
-Hãy viết 1 bài blog chất lượng cao chuẩn SEO cho cửa hàng "${storeName}" dựa trên từ khóa chính: "${keyword}".
+        const prompt = `Bạn là chuyên gia SEO và content creator hàng đầu chuyên về thương mại điện tử bán sỉ/lẻ Việt Nam.
+Hãy viết 1 bài blog CHẤT LƯỢNG CAO, HẤP DẪN, CHUẨN SEO cho cửa hàng "${storeName}" dựa trên từ khóa chính: "${keyword}".
 
-DANH SÁCH SẢN PHẨM HIỆN CÓ TẠI CỬA HÀNG ĐỂ CHÈN INTERNAL LINK:
+🎯 PHONG CÁCH VIẾT:
+- Văn phong: Tư vấn kinh doanh thân thiện, chuyên nghiệp, tập trung vào giải pháp tối ưu chi phí. Viết như đang trò chuyện tư vấn trực tiếp cho chủ shop online, kho hàng.
+- Sử dụng emoji phù hợp ở đầu mỗi heading H2 để bài viết sinh động.
+- Xen kẽ câu hỏi tu từ để tạo tương tác.
+
+📦 DANH SÁCH SẢN PHẨM HIỆN CÓ TẠI CỬA HÀNG (CHÈN INTERNAL LINK):
 ${productsList || 'Không có danh sách sản phẩm cụ thể.'}
 
-DANH SÁCH HÌNH ẢNH SẢN PHẨM KHẢ DỤNG ĐỂ CHÈN VÀO BÀI VIẾT:
+🖼️ DANH SÁCH HÌNH ẢNH KHẢ DỤNG (CHÈN VÀO BÀI VIẾT):
 ${imagesListPrompt}
 
-YÊU CẦU SEO CHI TIẾT:
-1. ĐỘ DÀI & ĐOẠN VĂN: Bài viết từ 1000 - 1500 từ. Chia thành các đoạn văn từ 3-4 câu giúp người đọc dễ theo dõi trên di động.
-2. THẺ HEADING: 
-   - Tiêu đề chính (H1) chứa từ khóa chính.
-   - 3 - 5 thẻ H2 (dùng ## trong Markdown), trong đó có chứa từ khóa liên quan.
-   - Các thẻ H3 (dùng ### trong Markdown) để làm rõ ý.
-3. MẬT ĐỘ TỪ KHÓA: Từ khóa "${keyword}" xuất hiện 3-5 lần một cách tự nhiên (ngay trong 100 từ đầu tiên, giữa bài và kết bài).
-4. CHÈN INTERNAL LINK SẢN PHẨM: Bắt buộc chọn 2 - 3 sản phẩm phù hợp nhất từ danh sách sản phẩm ở trên và chèn BẮT BUỘC ĐÚNG NGUYÊN VẸN cú pháp Markdown link: [Tên sản phẩm](Link) được cấp ở trên vào bài viết (ví dụ: "Bạn có thể tham khảo thêm [Tên sản phẩm](https://...)..."). TUYỆT ĐỐI KHÔNG tự bịa URL, KHÔNG tự thêm/bớt ký tự trong Link.
-5. CHÈN 3 HÌNH ẢNH SẢN PHẨM VÀO BÀI VIẾT (BẮT BUỘC): Bắt buộc lấy đúng 3 URL hình ảnh từ danh sách hình ảnh khả dụng ở trên và chèn rải rác vào bài viết bằng cú pháp Markdown: \`![Mô tả ảnh sinh động chứa từ khóa SEO](URL_ảnh)\`. Đặt 3 hình ảnh này ở các vị trí thích hợp ngay sau các thẻ H2 hoặc H3 để minh họa bài viết sinh động, trực quan. KHÔNG TỰ BỊA LINK ẢNH KHÁC KHÔNG CÓ TRONG DANH SÁCH.
-6. ĐỊNH DẠNG MARKDOWN: Dùng **in đậm**, gạch đầu dòng (-) để bài viết sống động.
-7. LỜI KÊU GỌI HÀNG (CTA): Đoạn cuối kết bài kêu gọi khách hàng đặt hàng hoặc liên hệ mua sỉ/lẻ tại ${storeName}.
+📋 CẤU TRÚC BÀI VIẾT BẮT BUỘC:
 
-ĐỊNH DẠNG TRẢ VỀ BẮT BUỘC (TUÂN THỦ CHÍNH XÁC CÁC THẺ PHÂN PHẠM):
+1. **MỞ BÀI (100-150 từ)**: Hook hấp dẫn, nêu pain point của khách hàng mục tiêu (đóng gói chậm, tốn chi phí, hàng hóa móp méo). Chèn từ khóa chính ngay 2 câu đầu.
+
+2. **PHẦN 1 — Tại sao cần giải pháp đóng gói chuyên nghiệp? (H2)**: Phân tích tầm quan trọng liên quan đến "${keyword}".
+
+3. **PHẦN 2 — Gợi ý Vật tư đóng gói tối ưu (H2)**: Giới thiệu các loại vật tư phù hợp. CHÈN 1-2 internal link sản phẩm từ danh sách.
+
+4. **PHẦN 3 — Bảng Giá Sỉ Tham Khảo (H2)**: BẮT BUỘC tạo 1 bảng Markdown table với cột: Vật tư | Giá lẻ | Giá sỉ (số lượng lớn). Dùng mức giá tham khảo hợp lý.
+
+5. **PHẦN 4 — Lý Do Chọn mua vật tư tại ${storeName} (H2)**: 4-5 bullet points nêu ưu điểm: Giá xưởng, Đa dạng kích thước, Chất lượng dai/dày, Giao hỏa tốc.
+
+6. **PHẦN 5 — Hỏi Đáp (H2 — FAQ)**: BẮT BUỘC viết 3-4 câu hỏi đáp dạng Q&A.
+   - **Q: Có cắt/in kích thước theo yêu cầu không?** A: ...
+   - **Q: Số lượng bao nhiêu thì được giá sỉ?** A: ...
+   - **Q: Ship hàng cồng kềnh như xốp nổ tính sao?** A: ...
+
+7. **KẾT BÀI + CTA (150 từ)**: Tóm tắt + Kêu gọi hành động mạnh: "Liên hệ ngay ${storeName} qua Zalo/Hotline để nhận báo giá sỉ vật tư đóng gói ưu đãi nhất!" Chèn link sản phẩm cuối cùng.
+
+📐 YÊU CẦU SEO KỸ THUẬT:
+- Tổng: 1200-1800 từ. Đoạn văn 3-4 câu, thân thiện mobile.
+- H1 chứa từ khóa chính (dưới 65 ký tự).
+- 4-6 thẻ H2, mỗi H2 có thể có H3 bên trong.
+- Từ khóa "${keyword}" xuất hiện 4-6 lần tự nhiên.
+- CHÈN ĐÚNG 2-3 internal link sản phẩm từ danh sách (ĐÚNG NGUYÊN VĂN cú pháp Markdown).
+- CHÈN ĐÚNG 3 hình ảnh từ danh sách bằng cú pháp: ![Mô tả ảnh chứa từ khóa SEO](URL_ảnh). Rải rác sau các H2. KHÔNG TỰ BỊA LINK ẢNH.
+- Dùng **in đậm**, gạch đầu dòng (-), bảng Markdown.
+
+ĐỊNH DẠNG TRẢ VỀ BẮT BUỘC:
 ##TITLE##
-[Viết tiêu đề bài viết hấp dẫn, chứa từ khóa, dưới 65 ký tự]
+[Tiêu đề hấp dẫn chứa từ khóa, dưới 65 ký tự]
 ##SUMMARY##
-[Viết đoạn tóm tắt Meta Description chuẩn SEO từ 120-150 ký tự chứa từ khóa]
+[Meta Description 120-155 ký tự chứa từ khóa + CTA ngắn]
 ##CONTENT##
-[Nội dung bài viết chi tiết bằng định dạng Markdown chứa 3 hình ảnh sản phẩm]`;
+[Nội dung bài viết Markdown đầy đủ cấu trúc trên]`;
 
         let response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
@@ -3326,8 +3390,8 @@ async function executeAutoBlogCycle(host = 'thohong.top') {
             let suggestPrompt = settingsMap['autoBlogSuggestPrompt'] || '';
             if (!suggestPrompt.trim()) {
                 suggestPrompt = `Bạn là chuyên gia SEO hàng đầu cho website e-commerce Việt Nam.
-Cửa hàng "${storeName}" chuyên kinh doanh các nhóm ngành hàng: ${categories.join(', ')}.
-Hãy gợi ý 10 từ khóa SEO tiềm năng nhất cho blog của cửa hàng.
+Cửa hàng "${storeName}" chuyên kinh doanh vật tư đóng gói, thùng carton, băng dính.
+Hãy gợi ý 10 từ khóa SEO long-tail tiềm năng nhất cho blog của cửa hàng.
 Trả về kết quả duy nhất 1 mảng JSON array: [{"keyword": "...", "reason": "...", "difficulty": "Dễ|Trung bình|Khó"}]`;
             } else {
                 suggestPrompt = suggestPrompt.replace(/\${storeName}/g, storeName).replace(/\${categories}/g, categories.join(', '));
@@ -3368,7 +3432,7 @@ Trả về kết quả duy nhất 1 mảng JSON array: [{"keyword": "...", "reas
             if (!kwRow) {
                 const catResult = await db.execute("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' ORDER BY RANDOM() LIMIT 3");
                 const cats = (catResult.rows || []).map(r => r.category).filter(Boolean);
-                const chosenCat = cats[0] || 'Văn phòng phẩm';
+                const chosenCat = cats[0] || 'vật tư đóng gói';
 
                 const generatedKw = `Kinh nghiệm chọn mua ${chosenCat} sỉ lẻ chất lượng cao`;
                 const kwId = 'kw_' + Date.now();
@@ -3395,26 +3459,17 @@ Trả về kết quả duy nhất 1 mảng JSON array: [{"keyword": "...", "reas
         const baseUrl = `${protocol}://${host}`;
 
         // 3. Fetch products and product images for AI prompt (Lọc chính xác theo chủ đề từ khóa)
-        const postTopic = detectStationeryTopic(keyword);
-        let topicKeywords = [];
-        if (postTopic === 'notebook') topicKeywords = ['sổ', 'vở', 'tập', 'bìa da', 'giấy'];
-        else if (postTopic === 'pen') topicKeywords = ['bút', 'chì', 'viết', 'dạ', 'gel', 'marker', 'ngòi'];
-        else if (postTopic === 'pencil_case') topicKeywords = ['bóp', 'hộp bút', 'túi', 'pouch'];
-        else if (postTopic === 'office') topicKeywords = ['kéo', 'kẹp', 'thước', 'dán', 'hồ', 'ghim'];
-
-        const rawWords = String(keyword || '').split(/\s+/).filter(w => w.length > 2);
-        rawWords.forEach(w => {
-            const low = w.toLowerCase();
-            if (!topicKeywords.includes(low)) topicKeywords.push(low);
-        });
-
+        const postTopic = detectStoreTopic(keyword);
+        const searchTerms = buildSmartSearchTerms(keyword, postTopic);
         let matchedProductsMap = new Map();
-        for (const kw of topicKeywords) {
+
+        // TẦNG 1: Exact Phrase Match
+        for (const phrase of searchTerms.phrases) {
             if (matchedProductsMap.size >= 5) break;
             try {
                 const pRes = await db.execute({
-                    sql: "SELECT id, name, category, price, imageUrl, details FROM products WHERE (status = 'active' OR status IS NULL OR status = '') AND imageUrl IS NOT NULL AND imageUrl != '' AND (name LIKE ? OR category LIKE ?) LIMIT 5",
-                    args: [`%${kw}%`, `%${kw}%`]
+                    sql: "SELECT id, name, category, price, imageUrl, details FROM products WHERE (status = 'active' OR status IS NULL OR status = '') AND imageUrl IS NOT NULL AND imageUrl != '' AND (LOWER(name) LIKE ? OR LOWER(category) LIKE ?) LIMIT 5",
+                    args: [`%${phrase}%`, `%${phrase}%`]
                 });
                 (pRes.rows || []).forEach(p => {
                     if (matchedProductsMap.size < 5 && !matchedProductsMap.has(p.id)) {
@@ -3422,6 +3477,43 @@ Trả về kết quả duy nhất 1 mảng JSON array: [{"keyword": "...", "reas
                     }
                 });
             } catch(err) {}
+        }
+
+        // TẦNG 2: Bigram & Category Match
+        if (matchedProductsMap.size < 5) {
+            for (const bigram of searchTerms.bigrams) {
+                if (matchedProductsMap.size >= 5) break;
+                try {
+                    const pRes = await db.execute({
+                        sql: "SELECT id, name, category, price, imageUrl, details FROM products WHERE (status = 'active' OR status IS NULL OR status = '') AND imageUrl IS NOT NULL AND imageUrl != '' AND (LOWER(name) LIKE ? OR LOWER(category) LIKE ?) LIMIT 5",
+                        args: [`%${bigram}%`, `%${bigram}%`]
+                    });
+                    (pRes.rows || []).forEach(p => {
+                        if (matchedProductsMap.size < 5 && !matchedProductsMap.has(p.id)) {
+                            matchedProductsMap.set(p.id, p);
+                        }
+                    });
+                } catch(err) {}
+            }
+        }
+
+        // TẦNG 3: Category Fallback
+        if (matchedProductsMap.size < 3) {
+            const catKeywords = getTopicCategoryKeywords(postTopic);
+            for (const catKw of catKeywords) {
+                if (matchedProductsMap.size >= 5) break;
+                try {
+                    const pRes = await db.execute({
+                        sql: "SELECT id, name, category, price, imageUrl, details FROM products WHERE (status = 'active' OR status IS NULL OR status = '') AND imageUrl IS NOT NULL AND imageUrl != '' AND (LOWER(name) LIKE ? OR LOWER(category) LIKE ?) ORDER BY RANDOM() LIMIT 5",
+                        args: [`%${catKw}%`, `%${catKw}%`]
+                    });
+                    (pRes.rows || []).forEach(p => {
+                        if (matchedProductsMap.size < 5 && !matchedProductsMap.has(p.id)) {
+                            matchedProductsMap.set(p.id, p);
+                        }
+                    });
+                } catch(err) {}
+            }
         }
 
         const selectedProducts = Array.from(matchedProductsMap.values());
@@ -3461,7 +3553,7 @@ Trả về kết quả duy nhất 1 mảng JSON array: [{"keyword": "...", "reas
         }).join('\n');
 
         if (availableImages.length < 3) {
-            const stockList = STATIONERY_STOCK_IMAGES[postTopic] || STATIONERY_STOCK_IMAGES['stationery_general'];
+            const stockList = STORE_STOCK_IMAGES[postTopic] || STORE_STOCK_IMAGES['general'];
             for (const stockUrl of stockList) {
                 if (availableImages.length >= 5) break;
                 if (!availableImages.some(i => i.url === stockUrl)) {
@@ -3477,31 +3569,55 @@ Trả về kết quả duy nhất 1 mảng JSON array: [{"keyword": "...", "reas
 
         let prompt = settingsMap['autoBlogPostPrompt'] || '';
         if (!prompt.trim()) {
-            prompt = `Bạn là nhà báo chuyên nghiệp và chuyên gia SEO thương mại điện tử Việt Nam.
-Hãy viết 1 bài blog chất lượng cao chuẩn SEO cho cửa hàng "${storeName}" dựa trên từ khóa chính: "${keyword}".
+            prompt = `Bạn là chuyên gia SEO và content creator hàng đầu chuyên về thương mại điện tử bán sỉ/lẻ Việt Nam.
+Hãy viết 1 bài blog CHẤT LƯỢNG CAO, HẤP DẪN, CHUẨN SEO cho cửa hàng "${storeName}" dựa trên từ khóa chính: "${keyword}".
 
-DANH SÁCH SẢN PHẨM HIỆN CÓ TẠI CỬA HÀNG ĐỂ CHÈN INTERNAL LINK:
+🎯 PHONG CÁCH VIẾT:
+- Văn phong: Tư vấn kinh doanh thân thiện, chuyên nghiệp, tập trung vào giải pháp tối ưu chi phí. Viết như đang trò chuyện tư vấn trực tiếp cho chủ shop online, kho hàng.
+- Sử dụng emoji phù hợp ở đầu mỗi heading H2 để bài viết sinh động.
+- Xen kẽ câu hỏi tu từ để tạo tương tác.
+
+📦 DANH SÁCH SẢN PHẨM HIỆN CÓ TẠI CỬA HÀNG (CHÈN INTERNAL LINK):
 ${productsList || 'Không có danh sách sản phẩm cụ thể.'}
 
-DANH SÁCH HÌNH ẢNH SẢN PHẨM KHẢ DỤNG ĐỂ CHÈN VÀO BÀI VIẾT:
+🖼️ DANH SÁCH HÌNH ẢNH KHẢ DỤNG (CHÈN VÀO BÀI VIẾT):
 ${imagesListPrompt}
 
-YÊU CẦU SEO CHI TIẾT:
-1. ĐỘ DÀI & ĐOẠN VĂN: Bài viết từ 1000 - 1500 từ. Chia thành các đoạn văn từ 3-4 câu giúp người đọc dễ theo dõi trên di động.
-2. THẺ HEADING: Tiêu đề H1 chứa từ khóa chính, 3-5 thẻ H2 (##) và H3 (###).
-3. MẬT ĐỘ TỪ KHÓA: Từ khóa "${keyword}" xuất hiện 3-5 lần một cách tự nhiên.
-4. CHÈN INTERNAL LINK SẢN PHẨM: Bắt buộc chọn 2-3 sản phẩm phù hợp nhất và chèn ĐÚNG NGUYÊN VẸN cú pháp Markdown link: [Tên sản phẩm](Link) được cấp ở trên.
-5. CHÈN 3 HÌNH ẢNH SẢN PHẨM VÀO BÀI VIẾT (BẮT BUỘC): Bắt buộc lấy đúng 3 URL hình ảnh từ danh sách hình ảnh khả dụng ở trên và chèn rải rác vào bài viết bằng cú pháp Markdown: \`![Mô tả ảnh sinh động chứa từ khóa SEO](URL_ảnh)\`. KHÔNG TỰ BỊA LINK ẢNH KHÁC.
-6. ĐỊNH DẠNG MARKDOWN: Dùng **in đậm**, gạch đầu dòng (-).
-7. LỜI KÊU GỌI HÀNG (CTA): Đoạn cuối kết bài kêu gọi khách hàng mua hàng tại ${storeName}.
+📋 CẤU TRÚC BÀI VIẾT BẮT BUỘC:
+
+1. **MỞ BÀI (100-150 từ)**: Hook hấp dẫn, nêu pain point của khách hàng mục tiêu (đóng gói chậm, tốn chi phí, hàng hóa móp méo). Chèn từ khóa chính ngay 2 câu đầu.
+
+2. **PHẦN 1 — Tại sao cần giải pháp đóng gói chuyên nghiệp? (H2)**: Phân tích tầm quan trọng liên quan đến "${keyword}".
+
+3. **PHẦN 2 — Gợi ý Vật tư đóng gói tối ưu (H2)**: Giới thiệu các loại vật tư phù hợp. CHÈN 1-2 internal link sản phẩm từ danh sách.
+
+4. **PHẦN 3 — Bảng Giá Sỉ Tham Khảo (H2)**: BẮT BUỘC tạo 1 bảng Markdown table với cột: Vật tư | Giá lẻ | Giá sỉ (số lượng lớn). Dùng mức giá tham khảo hợp lý.
+
+5. **PHẦN 4 — Lý Do Chọn mua vật tư tại ${storeName} (H2)**: 4-5 bullet points nêu ưu điểm: Giá xưởng, Đa dạng kích thước, Chất lượng dai/dày, Giao hỏa tốc.
+
+6. **PHẦN 5 — Hỏi Đáp (H2 — FAQ)**: BẮT BUỘC viết 3-4 câu hỏi đáp dạng Q&A.
+   - **Q: Có cắt/in kích thước theo yêu cầu không?** A: ...
+   - **Q: Số lượng bao nhiêu thì được giá sỉ?** A: ...
+   - **Q: Ship hàng cồng kềnh như xốp nổ tính sao?** A: ...
+
+7. **KẾT BÀI + CTA (150 từ)**: Tóm tắt + Kêu gọi hành động mạnh: "Liên hệ ngay ${storeName} qua Zalo/Hotline để nhận báo giá sỉ vật tư đóng gói ưu đãi nhất!" Chèn link sản phẩm cuối cùng.
+
+📐 YÊU CẦU SEO KỸ THUẬT:
+- Tổng: 1200-1800 từ. Đoạn văn 3-4 câu, thân thiện mobile.
+- H1 chứa từ khóa chính (dưới 65 ký tự).
+- 4-6 thẻ H2, mỗi H2 có thể có H3 bên trong.
+- Từ khóa "${keyword}" xuất hiện 4-6 lần tự nhiên.
+- CHÈN ĐÚNG 2-3 internal link sản phẩm từ danh sách (ĐÚNG NGUYÊN VĂN cú pháp Markdown).
+- CHÈN ĐÚNG 3 hình ảnh từ danh sách bằng cú pháp: ![Mô tả ảnh chứa từ khóa SEO](URL_ảnh). Rải rác sau các H2. KHÔNG TỰ BỊA LINK ẢNH.
+- Dùng **in đậm**, gạch đầu dòng (-), bảng Markdown.
 
 ĐỊNH DẠNG TRẢ VỀ BẮT BUỘC:
 ##TITLE##
-[Viết tiêu đề bài viết hấp dẫn, chứa từ khóa, dưới 65 ký tự]
+[Tiêu đề hấp dẫn chứa từ khóa, dưới 65 ký tự]
 ##SUMMARY##
-[Viết đoạn tóm tắt Meta Description chuẩn SEO từ 120-150 ký tự chứa từ khóa]
+[Meta Description 120-155 ký tự chứa từ khóa + CTA ngắn]
 ##CONTENT##
-[Nội dung bài viết chi tiết bằng định dạng Markdown chứa 3 hình ảnh sản phẩm]`;
+[Nội dung bài viết Markdown đầy đủ cấu trúc trên]`;
         } else {
             prompt = prompt
                 .replace(/\${storeName}/g, storeName)
