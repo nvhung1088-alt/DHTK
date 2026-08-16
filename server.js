@@ -2313,9 +2313,11 @@ app.post('/api/admin/social/telegram-share-now', authenticateToken, async (req, 
 
 app.get('/api/admin/blog/indexing-posts', authenticateToken, async (req, res) => {
     try {
-        try {
-            await db.execute("ALTER TABLE blog_posts ADD COLUMN make_shared_at TEXT DEFAULT ''");
-        } catch(e) {}
+        try { await db.execute("ALTER TABLE blog_posts ADD COLUMN make_shared_at TEXT DEFAULT ''"); } catch(e) {}
+        try { await db.execute("ALTER TABLE blog_posts ADD COLUMN telegram_shared_at TEXT DEFAULT ''"); } catch(e) {}
+        try { await db.execute("ALTER TABLE blog_posts ADD COLUMN facebook_shared_at TEXT DEFAULT ''"); } catch(e) {}
+        try { await db.execute("ALTER TABLE blog_posts ADD COLUMN indexed_at TEXT DEFAULT ''"); } catch(e) {}
+
         const result = await db.execute("SELECT id, title, slug, summary, status, created_at, make_shared_at, telegram_shared_at, facebook_shared_at FROM blog_posts ORDER BY created_at DESC");
         res.json({ success: true, posts: result.rows || [] });
     } catch(e) {
