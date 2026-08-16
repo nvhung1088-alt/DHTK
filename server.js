@@ -648,7 +648,7 @@ async function extractBlogImages(blogData) {
     // 1. Trích xuất ảnh bìa của bài viết (Ưu tiên cao nhất)
     let coverImg = blogData.cover_image || blogData.image || '';
     if (coverImg) {
-        if (!coverImg.startsWith('http')) coverImg = `https://thohong.top${coverImg.startsWith('/') ? '' : '/'}${coverImg}`;
+        if (!coverImg.startsWith('http')) coverImg = `https://dhtk.vercel.app${coverImg.startsWith('/') ? '' : '/'}${coverImg}`;
         images.push(coverImg);
     }
 
@@ -659,7 +659,7 @@ async function extractBlogImages(blogData) {
         while ((match = imgRegex.exec(blogData.content)) !== null) {
             let src = match[1];
             if (src) {
-                if (!src.startsWith('http')) src = `https://thohong.top${src.startsWith('/') ? '' : '/'}${src}`;
+                if (!src.startsWith('http')) src = `https://dhtk.vercel.app${src.startsWith('/') ? '' : '/'}${src}`;
                 if (!images.includes(src)) images.push(src);
             }
         }
@@ -713,7 +713,7 @@ async function extractBlogImages(blogData) {
             images.push(images[images.length % realImgCount]);
         }
     } else {
-        const storeDefaultLogo = 'https://thohong.top/app-icon.jpg';
+        const storeDefaultLogo = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=1080&q=80';
         images = [storeDefaultLogo, storeDefaultLogo, storeDefaultLogo, storeDefaultLogo];
     }
 
@@ -834,8 +834,8 @@ app.post('/api/admin/social/make-share-now', authenticateToken, async (req, res)
                 id: 'sample-post-001',
                 title: '🎉 Bài viết thử nghiệm phân phối Đa Kênh qua Make.com!',
                 slug: 'bai-viet-thu-nghiem-make-automation',
-                excerpt: 'Tự động xuất bản bài viết tin tức mới nhất từ hệ thống website Thỏ Hồng lên Facebook, Instagram, Telegram, Zalo OA...',
-                image: 'https://thohong.top/media__1784598666512.png'
+                excerpt: 'Tự động xuất bản bài viết tin tức mới nhất từ hệ thống website Đồng Hành Tiết Kiệm lên Facebook, Instagram, Telegram, Zalo OA...',
+                image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=1080&q=80'
             };
         }
 
