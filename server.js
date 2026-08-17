@@ -591,21 +591,6 @@ function generateSmartHashtags(blogData) {
     return tags.slice(0, 5).join(' ');
 }
 
-const STORE_STOCK_IMAGES = {
-    packaging_supplies: [
-        'https://images.unsplash.com/photo-1556740738-b6a63e27c4df?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&auto=format&fit=crop&q=80'
-    ],
-    general: [
-        'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1607082349566-187342175e2f?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1556740738-b6a63e27c4df?w=800&auto=format&fit=crop&q=80'
-    ]
-};
-
 function detectStoreTopic(text) {
     return 'packaging_supplies';
 }
@@ -721,19 +706,8 @@ async function extractBlogImages(blogData) {
         }
     }
 
-    // 4. Nếu vẫn chưa đủ 4 ảnh, bổ sung các ảnh kho mẫu cao cấp CHUẨN KHÁC NHAU
-    if (images.length < 4) {
-        const stockList = STORE_STOCK_IMAGES[postTopic] || STORE_STOCK_IMAGES['general'];
-        for (const stockUrl of stockList) {
-            if (images.length >= 4) break;
-            if (!images.includes(stockUrl)) {
-                images.push(stockUrl);
-            }
-        }
-    }
-
     if (images.length === 0) {
-        images = ['https://images.unsplash.com/photo-1556740738-b6a63e27c4df?w=800&auto=format&fit=crop&q=80'];
+        images = ['https://donghangtietkiem.com/media__1784218914381.png'];
     }
 
     const uniqueImages = Array.from(new Set(images));
@@ -781,9 +755,9 @@ async function triggerMakeWebhook(blogData, isManual = false) {
             link: finalLink,
             image: imagesList[0],
             image1: imagesList[0],
-            image2: imagesList[1] || imagesList[0],
-            image3: imagesList[2] || imagesList[0],
-            image4: imagesList[3] || imagesList[0],
+            image2: imagesList[1],
+            image3: imagesList[2],
+            image4: imagesList[3],
             images: imagesList,
             facebook_photo_url: imagesList[0],
             hashtags: smartHashtags,
