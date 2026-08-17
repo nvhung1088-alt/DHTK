@@ -595,15 +595,14 @@ const STORE_STOCK_IMAGES = {
     packaging_supplies: [
         'https://images.unsplash.com/photo-1556740738-b6a63e27c4df?w=800&auto=format&fit=crop&q=80',
         'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1628102491629-77858ab216b2?w=800&auto=format&fit=crop&q=80',
         'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1580674684081-77673e735bf4?w=800&auto=format&fit=crop&q=80'
+        'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&auto=format&fit=crop&q=80'
     ],
     general: [
         'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&auto=format&fit=crop&q=80',
         'https://images.unsplash.com/photo-1607082349566-187342175e2f?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=800&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=800&auto=format&fit=crop&q=80'
+        'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1556740738-b6a63e27c4df?w=800&auto=format&fit=crop&q=80'
     ]
 };
 
@@ -650,6 +649,7 @@ function sanitizeImageUrl(url) {
     if (!u.startsWith('http')) {
         u = `https://dhtk.vercel.app${u.startsWith('/') ? '' : '/'}${u}`;
     }
+    u = u.replace(/^https?:\/\/localhost:\d+\//gi, 'https://dhtk.vercel.app/');
     u = u.replace(/^https?:\/\/(www\.)?thohong\.top\/media__/gi, 'https://dhtk.vercel.app/media__');
     u = u.replace(/^https?:\/\/(www\.)?thohong\.vercel\.app\/media__/gi, 'https://dhtk.vercel.app/media__');
     return u;
