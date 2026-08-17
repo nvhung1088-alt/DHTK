@@ -692,10 +692,16 @@ async function extractBlogImages(blogData) {
 
     const postTopic = detectStoreTopic((blogData.title || '') + ' ' + (blogData.keyword || ''));
 
-    // 3. Tìm các sản phẩm trong CSDL KHỚP CHÍNH XÁC chủ đề bài viết
+    // 3. Tìm các sản phẩm trong CSDL ưu tiên theo từ khóa của bài viết
     if (images.length < 4) {
         try {
-            let topicKeywords = ['thùng', 'hộp', 'carton', 'băng dính', 'băng keo', 'xốp nổ', 'màng bọc', 'pe', 'túi gói hàng', 'túi zip'];
+            let topicKeywords = [];
+            const searchTerms = buildSmartSearchTerms((blogData.keyword || blogData.title || ''), postTopic);
+            topicKeywords = [...searchTerms.phrases, ...searchTerms.bigrams];
+            
+            if (topicKeywords.length === 0) {
+                topicKeywords = ['thùng', 'hộp', 'carton', 'băng dính', 'băng keo', 'xốp nổ', 'màng bọc', 'pe', 'túi gói hàng', 'túi zip'];
+            }
             for (const kw of topicKeywords) {
                 if (images.length >= 4) break;
                 const pRes = await db.execute({
