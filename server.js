@@ -3726,7 +3726,7 @@ ${imagesListPrompt}
         await db.execute({ sql: "UPDATE seo_keywords SET status = 'generated' WHERE id = ? OR keyword = ?", args: [keywordId || '', keyword] });
         await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('autoBlogLastRun', ?)", args: [nowIso] });
 
-        // Auto Push to Google Indexing API & Auto Share to Telegram Blog Channel
+        // Auto Push to Google Indexing API & Auto Share to Telegram Blog Channel & Make.com
         if (status === 'published') {
             const fullBlogUrl = `${baseUrl}/blog/${uniqueSlug}`;
             try {
@@ -3734,6 +3734,15 @@ ${imagesListPrompt}
                 await shareBlogToTelegram(fullBlogUrl, title, summary, coverImage, blogId);
             } catch(e) {
                 console.error('[AUTO-INDEX/TELEGRAM HOOK ERROR]', e.message);
+            }
+            
+            try { 
+                await triggerMakeWebhook({ 
+                    id: blogId, title, slug: uniqueSlug, excerpt: summary, 
+                    image: coverImage, content, created_at: nowIso 
+                }); 
+            } catch(e) {
+                console.error('[MAKE WEBHOOK EXCEPTION IN AUTO-BLOG]', e.message); 
             }
         }
 
