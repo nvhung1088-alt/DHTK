@@ -12,6 +12,7 @@
 1. **Turso Engine**: Dùng Native HTTP Client `fetch` gửi payload `/v2/pipeline` trực tiếp tới Turso Cloud, loại bỏ sự phụ thuộc vào SQLite Cục bộ & Tránh lỗi Timeout trên Vercel Serverless.
 2. **Pancake POS V2 Push**: Payload truyền `bill_full_name`, `bill_phone_number`, `shipping_address`, `order_sources` chuẩn format V2.
 3. **Bảo mật**: Khóa các API route nhạy cảm (`/api/settings/private`, `/api/pos/sync`) bằng JWT authentication.
+4. **Auto-Blog Trigger (Lưu ý bài học)**: Vercel Free Plan giới hạn Cron Job (1 cron/ngày). TUYỆT ĐỐI KHÔNG thêm cron tần suất cao vào `vercel.json`. Bắt buộc dùng Dịch vụ CronJob bên ngoài (`cron-job.org`) ping định kỳ route `/api/cron/auto-blog` để đánh thức Serverless Function.
 
 ## 📝 Nhật Ký Sprint
 - **Sprint 1 (Hoàn thành)**: Vá lỗ hổng bảo mật API, tách settings private, tích hợp Turso CSDL Cloud.
