@@ -3421,7 +3421,7 @@ app.post('/api/admin/blog/auto-config', authenticateToken, async (req, res) => {
 
 let isAutoBlogRunning = false;
 
-async function executeAutoBlogCycle(host = 'thohong.top') {
+async function executeAutoBlogCycle(host = 'dhtk.vercel.app') {
     if (isAutoBlogRunning) return { skipped: true, reason: 'Already running' };
     isAutoBlogRunning = true;
 
@@ -3856,7 +3856,7 @@ setInterval(async () => {
 
         if (now - lastRunTime >= targetInterval) {
             console.log(`[AUTO-BLOG CRON] Scheduled time reached (${schedule}). Executing auto-blog cycle...`);
-            await executeAutoBlogCycle('thohong.top');
+            await executeAutoBlogCycle('dhtk.vercel.app');
         }
     } catch(e) {
         console.error('[AUTO-BLOG CRON ERROR]', e.message);
