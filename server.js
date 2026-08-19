@@ -592,6 +592,33 @@ function generateSmartHashtags(blogData) {
 }
 
 function detectStoreTopic(text) {
+    const slug = toAsciiSlug(text || '');
+    const lower = (text || '').toLowerCase();
+    
+    if (/toc|kep[-\s]?toc|bang[-\s]?do|chun|nho[-\s]?toc|cai[-\s]?toc|tram|scrunchie|co[-\s]?toc|day[-\s]?buoc/i.test(slug) 
+        || /phụ kiện tóc|kẹp tóc|băng đô|chun buộc|nơ tóc|cài tóc|trâm|dây cột tóc/i.test(lower))
+        return 'hair_accessories';
+    
+    if (/vong|nhan|day[-\s]?chuyen|khuyen[-\s]?tai|bong[-\s]?tai|lac|kinh|trang[-\s]?suc/i.test(slug)
+        || /vòng|nhẫn|dây chuyền|khuyên tai|bông tai|lắc|kính|trang sức/i.test(lower))
+        return 'jewelry_fashion';
+    
+    if (/tui|balo|vi|clutch|gio[-\s]?xach|tui[-\s]?deo/i.test(slug)
+        || /túi|balo|ví|clutch|giỏ xách|túi đeo/i.test(lower))
+        return 'bags_accessories';
+    
+    if (/but|chi|viet|da|highlight|marker|gel|ngoi|muc|so|vo|tap|bia|giay|journal|planner|notebook|bop|hop[-\s]?but|pencil/i.test(slug)
+        || /bút|chì|viết|sổ|vở|tập|bóp|hộp bút|pencil/i.test(lower))
+        return 'stationery';
+    
+    if (/qua[-\s]?tang|gau[-\s]?bong|moc[-\s]?khoa|do[-\s]?choi|figure|sticker|cute|kawaii/i.test(slug)
+        || /quà tặng|gấu bông|móc khóa|đồ chơi|figure|sticker/i.test(lower))
+        return 'gifts_toys';
+    
+    if (/ban[-\s]?buon|gia[-\s]?si|tong[-\s]?kho|nhap[-\s]?si|si[-\s]?le|dai[-\s]?ly/i.test(slug)
+        || /bán buôn|giá sỉ|tổng kho|nhập sỉ|sỉ lẻ|đại lý/i.test(lower))
+        return 'wholesale_general';
+    
     return 'packaging_supplies';
 }
 
@@ -624,7 +651,17 @@ function buildSmartSearchTerms(keyword, topic) {
 }
 
 function getTopicCategoryKeywords(topic) {
-    return ['thùng', 'hộp', 'carton', 'băng dính', 'băng keo', 'xốp nổ', 'màng bọc', 'pe', 'túi gói hàng', 'túi zip'];
+    const map = {
+        'hair_accessories': ['tóc', 'kẹp', 'băng đô', 'nơ', 'chun', 'cài', 'trâm', 'scrunchie'],
+        'jewelry_fashion':  ['vòng', 'nhẫn', 'khuyên', 'bông tai', 'lắc', 'dây chuyền', 'trang sức'],
+        'bags_accessories':  ['túi', 'balo', 'ví', 'clutch'],
+        'stationery':       ['bút', 'sổ', 'vở', 'tập', 'bóp', 'hộp bút', 'giấy', 'kéo'],
+        'gifts_toys':       ['quà', 'gấu bông', 'móc khóa', 'đồ chơi', 'sticker', 'figure'],
+        'wholesale_general': ['sỉ', 'phụ kiện', 'thời trang', 'cute'],
+        'packaging_supplies': ['thùng', 'hộp', 'carton', 'băng dính', 'băng keo', 'xốp nổ', 'màng bọc', 'pe', 'túi gói hàng', 'túi zip'],
+        'general':          ['phụ kiện', 'cute', 'thời trang', 'hot']
+    };
+    return map[topic] || map['packaging_supplies'];
 }
 
 
@@ -635,8 +672,7 @@ function sanitizeImageUrl(url) {
         u = `https://dhtk.vercel.app${u.startsWith('/') ? '' : '/'}${u}`;
     }
     u = u.replace(/^https?:\/\/localhost:\d+\//gi, 'https://dhtk.vercel.app/');
-    u = u.replace(/^https?:\/\/(www\.)?thohong\.top\/media__/gi, 'https://dhtk.vercel.app/media__');
-    u = u.replace(/^https?:\/\/(www\.)?thohong\.vercel\.app\/media__/gi, 'https://dhtk.vercel.app/media__');
+    u = u.replace(/^https?:\/\/(www\.)?(thohong\.top|thohong\.vercel\.app)\/media__/gi, 'https://dhtk.vercel.app/media__');
     return u;
 }
 
