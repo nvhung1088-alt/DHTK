@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đồng Hành Tiết Kiệm - Hệ Thống Đặt Hàng Thông Minh</title>
-    <meta name="description" id="seoDescription" content="Hệ thống đặt hàng thông minh Đồng Hành Tiết Kiệm, tự động tính toán, đồng bộ tồn kho POS trực tuyến.">
-    <meta name="keywords" content="dhtk, đồng hành tiết kiệm, đặt hàng thông minh, pancake pos, đồng bộ tồn kho">
+    <title>Tổng Kho Sỉ Lẻ Thỏ Hồng - Hệ Thống Đặt Hàng Thông Minh</title>
+    <meta name="description" id="seoDescription" content="Hệ thống đặt hàng sỉ lẻ thông minh Tổng Kho Sỉ Lẻ Thỏ Hồng, tự động tính toán chiết khấu sỉ/lẻ, đồng bộ tồn kho POS Pancake trực tuyến.">
+    <meta name="keywords" content="thỏ hồng, tổng kho thỏ hồng, tổng kho sỉ lẻ, đặt hàng thông minh, pancake pos, đồng bộ tồn kho, giá sỉ">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="facebook-domain-verification" content="wqezdsx3siivolh6sk3yaf6ezyn733" />
 
     <!-- Canonical Tag & Sitemap -->
-    <link rel="canonical" id="canonicalTag" href="https://dhtk.vercel.app/">
+    <link rel="canonical" id="canonicalTag" href="https://www.thohong.top/">
     <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,11 +19,11 @@
     <!-- Open Graph / Zalo / Facebook Sharing -->
     <meta property="og:type" content="website">
     <meta property="og:locale" content="vi_VN">
-    <meta property="og:title" id="ogTitle" content="Đồng Hành Tiết Kiệm - Hệ Thống Đặt Hàng Thông Minh">
-    <meta property="og:description" id="ogDescription" content="Hệ thống đặt hàng thông minh Đồng Hành Tiết Kiệm, tự động tính toán, đồng bộ tồn kho POS trực tuyến.">
-    <meta property="og:image" id="ogImage" content="https://dhtk.vercel.app/media__1784598666512.png">
-    <meta property="og:url" id="ogUrl" content="https://dhtk.vercel.app/">
-    <meta property="og:site_name" content="Đồng Hành Tiết Kiệm Store">
+    <meta property="og:title" id="ogTitle" content="Tổng Kho Sỉ Lẻ Thỏ Hồng - Hệ Thống Đặt Hàng Thông Minh">
+    <meta property="og:description" id="ogDescription" content="Hệ thống đặt hàng sỉ lẻ thông minh Tổng Kho Sỉ Lẻ Thỏ Hồng, tự động tính toán chiết khấu sỉ/lẻ, đồng bộ tồn kho POS Pancake trực tuyến.">
+    <meta property="og:image" id="ogImage" content="https://www.thohong.top/media__1784598666512.png">
+    <meta property="og:url" id="ogUrl" content="https://www.thohong.top/">
+    <meta property="og:site_name" content="Tổng Kho Sỉ Lẻ Thỏ Hồng Store">
 
     <!-- Twitter Cards -->
     <meta name="twitter:card" content="summary_large_image">
@@ -1031,7 +1031,7 @@
                             </div>
                             <div>
                                 <label style="font-size:0.85rem; font-weight:600; color:#475569; display:block; margin-bottom:4px;">Tiêu đề thông báo:</label>
-                                <input type="text" id="ap_tg_name" placeholder="VD: 🏪 ĐHTK - Đơn hàng mới" style="width:100%;" oninput="storeSettings.storeName=this.value.trim()">
+                                <input type="text" id="ap_tg_name" placeholder="VD: 🏪 Thỏ Hồng - Đơn hàng mới" style="width:100%;" oninput="storeSettings.storeName=this.value.trim()">
                             </div>
                             <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
                                 <button class="btn btn-secondary" style="flex:1;" onclick="apTestTelegram()">📨 Gửi tin test đơn hàng</button>
@@ -1783,6 +1783,7 @@
                 let opts = [];
                 let hasOpt1 = rG.some(r => r[2] && r[2].trim() !== '');
                 let hasOpt2 = rG.some(r => r[3] && r[3].trim() !== '');
+                
                 if(hasOpt1) {
                     let v = new Set(); rG.forEach(r=>{if(r[2] && r[2].trim() !== '') v.add(r[2].trim())});
                     opts.push({id:'opt_1', name:'Phân loại 1', values:Array.from(v), hidden:false});
@@ -2109,6 +2110,84 @@
                     image: images.length > 0 ? images[0] : ''
                 };
 
+                let product = { 
+                    id: targetId, 
+                    name: pName || sku, 
+                    category: cat, 
+                    images: images, 
+                    description: description, 
+                    sku: sku || pName, 
+                    unit: "sp", 
+                    weight: weight, 
+                    costPrice: costPrice,
+                    price: retailPrice,
+                    pricingTiers: tiers, 
+                    options: [], 
+                    variants: [defaultVariant] 
+                };
+
+                newImportedProducts.push(product);
+            });
+
+            document.getElementById('excelStep2').innerHTML = `
+                <div style="text-align:center; padding: 20px;">
+                    <p id="importProgressText" style="margin-bottom:10px; font-weight:bold; color:#1e3a8a;">⏳ Đang chuẩn bị lưu dữ liệu...</p>
+                    <div style="width:100%; background:#e2e8f0; border-radius:10px; height:20px; overflow:hidden;">
+                        <div id="importProgressBar" style="width:0%; height:100%; background:#10b981; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+            `;
+            
+            const CHUNK_SIZE = 50; 
+            let isFirst = !appendMode; // Xóa DB ở chunk đầu tiên nếu chọn Ghi đè
+
+            let totalUpdated = 0;
+            let totalCreated = 0;
+
+            async function uploadChunks() {
+                for (let i = 0; i < newImportedProducts.length; i += CHUNK_SIZE) {
+                    const chunk = newImportedProducts.slice(i, i + CHUNK_SIZE);
+                    let current = Math.min(i + CHUNK_SIZE, newImportedProducts.length);
+                    let percent = Math.floor((current / newImportedProducts.length) * 100);
+                    
+                    document.getElementById('importProgressText').innerHTML = `⏳ Đang đẩy lên máy chủ: <strong>${current} / ${newImportedProducts.length}</strong> sản phẩm...`;
+                    document.getElementById('importProgressBar').style.width = percent + '%';
+                    
+                    const res = await fetchAPI('/api/products/import', {
+                        method: 'POST',
+                        body: { products: chunk, clearFirst: (i === 0) ? isFirst : false }
+                    });
+
+                    if (res && res.updatedCount !== undefined) {
+                        totalUpdated += (res.updatedCount || 0);
+                        totalCreated += (res.createdCount || 0);
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+                if (!appendMode) {
+                    products = newImportedProducts;
+                } else {
+                    newImportedProducts.forEach(newP => {
+                        let matchIdx = products.findIndex(p => p.id === newP.id);
+                        if (matchIdx > -1) products[matchIdx] = newP;
+                        else products.push(newP);
+                    });
+                }
+
+                renderUI(); 
+                if (typeof closeModal === 'function') closeModal('excelModal');
+                else document.getElementById('excelModal').classList.remove('active');
+
+                alert(`🎉 BÁO CÁO KẾT QUẢ IMPORT THÀNH CÔNG!\n----------------------------------\n🔄 SP ĐƯỢC CẬP NHẬT (thay đổi dữ liệu SP cũ): ${totalUpdated} / ${newImportedProducts.length}\n✨ SP TẠO MỚI (mới hoàn toàn): ${totalCreated} / ${newImportedProducts.length}\n📦 TỔNG SỐ SẢN PHẨM ĐÃ XỬ LÝ: ${newImportedProducts.length} sản phẩm.`);
+            }
+
+            uploadChunks().catch(e => {
+                alert("❌ Lỗi khi nhập sản phẩm: " + e.message);
+            });
+        }
+
         function isHideOutOfStockEnabled() {
             return storeSettings.hideOutOfStock === true || storeSettings.hideOutOfStock === 'true';
         }
@@ -2119,6 +2198,34 @@
                 ? p.variants.reduce((s, v) => s + (Number(v.stock) || 0), 0)
                 : (Number(p.quantity) || 0);
             return totalStock <= 0;
+        }
+
+        // --- VIEW LOGIC ---
+        function setViewMode(mode) {
+            currentViewMode = mode;
+            document.getElementById('btnGrid').classList.toggle('active', mode==='grid');
+            document.getElementById('btnList').classList.toggle('active', mode==='list');
+            const listEl = document.getElementById('productList');
+            if(mode === 'list') listEl.classList.add('list-view'); else listEl.classList.remove('list-view');
+        }
+
+        function setCategory(cat) { 
+            activeCategory = cat; 
+            updateURLParams({ cat: cat });
+            renderProducts(); 
+            renderCategories(); 
+        }
+
+        function scrollCatSlide(direction) {
+            const container = document.getElementById('catScrollWrapper');
+            if (container) {
+                container.scrollBy({ left: direction, behavior: 'smooth' });
+            }
+        }
+
+        function openAllCategoriesModal() {
+            renderAllCategoriesGrid();
+            document.getElementById('allCategoriesModal').classList.add('active');
         }
 
         function renderAllCategoriesGrid() {
@@ -2177,11 +2284,29 @@
                 const label = isAll ? 'Tất cả sản phẩm' : c;
                 const count = isAll ? totalCount : catCounts[c];
                 const isActive = activeCategory === c;
-                return `<button class="cat-pill ${isActive ? 'active' : ''}" onclick="setCategory('${c}')">${label} (${count})</button>`;
+                return `
+                    <div class="cat-tab ${isActive ? 'active' : ''}" onclick="setCategory('${c}')">
+                        <span>${label}</span>
+                        <span class="cat-badge-count">${count}</span>
+                    </div>
+                `;
             }).join('');
 
-            const container = document.getElementById('categoryList');
+            const container = document.getElementById('categoryTabs');
             if (container) container.innerHTML = html;
+
+            const badge = document.getElementById('catTotalBadge');
+            if (badge) badge.textContent = sortedCats.length;
+        }
+
+        function getActiveVariant(pId) {
+            const p = products.find(x=>x.id==pId);
+            if(!p) return null;
+            if(p.variants.length === 1) return p.variants[0]; 
+            
+            const currentSel = selections[pId] || {};
+            let matchedVariants = p.variants.filter(v => {
+                for(let optId in currentSel) {
                     if(v.optionValues[optId] !== currentSel[optId]) return false;
                 }
                 return true;
@@ -2341,8 +2466,14 @@
                 const sku = activeV?activeV.sku:p.sku;
                 const stock = activeV?activeV.stock:'?';
 
+                const isOOS = isProductOutOfStock(p);
+                const adminBadge = (isAdmin && isOOS && isHideOutOfStockEnabled()) 
+                    ? `<div style="position:absolute; top:8px; left:8px; z-index:10; background:#ef4444; color:white; font-size:0.7rem; font-weight:800; padding:4px 8px; border-radius:6px; box-shadow:0 2px 4px rgba(239,68,68,0.3);">🚫 ĐÃ ẨN KHỎI KHÁCH (HẾT HÀNG)</div>` 
+                    : '';
+
                 htmlChunk += `
-                    <div class="product-card ${isAdmin?'admin-mode':''}">
+                    <div class="product-card ${isAdmin?'admin-mode':''}" style="position:relative;">
+                        ${adminBadge}
                         <div class="product-image ${imgUrl?'':'no-img'}" onclick="openDetailModal('${p.id}')">
                             ${imgTag}
                         </div>
@@ -2720,7 +2851,7 @@
                 return;
             }
             if (!isAdmin && isHideOutOfStockEnabled() && isProductOutOfStock(p)) {
-                showToast('⚠️ Sản phẩm này hiện đang hết hàng và đã tự động ẩn khỏi gian hàng', 'warning');
+                showToast('⚠️ Sản phẩm này hiện đang hết hàng và đã ẩn khỏi gian hàng', 'warning');
                 showProduct404Modal();
                 return;
             }
@@ -3351,7 +3482,7 @@
 
                     if (document.getElementById('ap_tg_token')) document.getElementById('ap_tg_token').value = storeSettings.telegramToken || '';
                     if (document.getElementById('ap_tg_chatid')) document.getElementById('ap_tg_chatid').value = storeSettings.telegramChatId || '';
-                    if (document.getElementById('ap_tg_name')) document.getElementById('ap_tg_name').value = storeSettings.storeName || '🏪 ĐHTK - Đơn hàng mới';
+                    if (document.getElementById('ap_tg_name')) document.getElementById('ap_tg_name').value = storeSettings.storeName || '🏪 Thỏ Hồng - Đơn hàng mới';
                     if (document.getElementById('ap_tg_blog_token')) document.getElementById('ap_tg_blog_token').value = storeSettings.telegramBlogToken || '';
                     if (document.getElementById('ap_tg_blog_chatid')) document.getElementById('ap_tg_blog_chatid').value = storeSettings.telegramBlogChatId || '';
                     if (document.getElementById('ap_tg_blog_auto')) document.getElementById('ap_tg_blog_auto').checked = storeSettings.autoTelegramShare !== 'false';
@@ -3380,7 +3511,7 @@
 
             const token = tokenEl ? tokenEl.value.trim() : (storeSettings.telegramToken || '');
             const chatId = chatIdEl ? chatIdEl.value.trim() : (storeSettings.telegramChatId || '');
-            const name = nameEl ? nameEl.value.trim() : (storeSettings.storeName || '🏪 ĐHTK - Đơn hàng mới');
+            const name = nameEl ? nameEl.value.trim() : (storeSettings.storeName || '🏪 Thỏ Hồng - Đơn hàng mới');
             const blogToken = blogTokenEl ? blogTokenEl.value.trim() : (storeSettings.telegramBlogToken || '');
             const blogChatId = blogChatIdEl ? blogChatIdEl.value.trim() : (storeSettings.telegramBlogChatId || '');
             const autoShare = autoShareEl ? (autoShareEl.checked ? 'true' : 'false') : (storeSettings.autoTelegramShare || 'true');
@@ -3595,110 +3726,43 @@
             }
         }
 
-        let cachedMakePosts = [];
-
-        function updateMakeUrlStatusBadge() {
-            const el = document.getElementById('ap_make_webhook_url');
-            const badge = document.getElementById('makeUrlStatusBadge');
-            if (!badge) return;
-            const val = el ? el.value.trim() : (storeSettings.makeWebhookUrl || '');
-            if (val && val.length > 15) {
-                badge.style.background = '#d1fae5';
-                badge.style.color = '#065f46';
-                badge.style.borderColor = '#6ee7b7';
-                badge.innerText = '🟢 Đã có Webhook URL';
-            } else {
-                badge.style.background = '#fee2e2';
-                badge.style.color = '#991b1b';
-                badge.style.borderColor = '#fca5a5';
-                badge.innerText = '⚠️ Chưa có URL';
-            }
-        }
-
-        function copyMakeWebhookUrlInput() {
-            const el = document.getElementById('ap_make_webhook_url');
-            if (!el || !el.value) return alert('⚠️ Chưa có URL Webhook để sao chép!');
-            navigator.clipboard.writeText(el.value);
-            alert('📋 Đã sao chép Webhook URL vào bộ nhớ tạm!');
-        }
-
-        function updateMakeToggleSlider(checked) {
-            const slider = document.getElementById('ap_make_auto_slider');
-            const knob = document.getElementById('ap_make_auto_knob');
-            if (slider) slider.style.background = checked ? '#6366f1' : '#cbd5e1';
-            if (knob) knob.style.transform = checked ? 'translateX(22px)' : 'translateX(0)';
-        }
-
         async function loadMakePosts() {
             const tableBody = document.getElementById('makeTabPostsTableBody');
             if (!tableBody) return;
-            updateMakeUrlStatusBadge();
             try {
                 const res = await fetchAPI('/api/admin/blog/indexing-posts');
                 const posts = Array.isArray(res) ? res : (res.posts || []);
-                cachedMakePosts = posts;
-
-                const unsharedCount = posts.filter(p => p.status === 'published' && !p.make_shared_at).length;
-                const badge = document.getElementById('makeUnsharedBadge');
-                if (badge) {
-                    if (unsharedCount > 0) {
-                        badge.style.background = '#fef3c7';
-                        badge.style.color = '#b45309';
-                        badge.innerText = `⏳ Còn ${unsharedCount} bài chưa share`;
-                    } else {
-                        badge.style.background = '#d1fae5';
-                        badge.style.color = '#065f46';
-                        badge.innerText = `✅ Đã share toàn bộ (${posts.length} bài)`;
-                    }
+                if (posts.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" style="padding:15px; text-align:center; color:#94a3b8;">Chưa có bài viết blog nào.</td></tr>';
+                    return;
                 }
+                let html = '';
+                posts.forEach(p => {
+                    const makeShared = !!p.make_shared_at;
+                    const makeStatusHtml = makeShared 
+                        ? `<span style="color:#059669; font-weight:bold; background:#d1fae5; padding:3px 8px; border-radius:6px;">✅ Đã gửi Make.com (${new Date(p.make_shared_at).toLocaleDateString('vi-VN')})</span>` 
+                        : `<span style="color:#d97706; font-weight:bold; background:#fef3c7; padding:3px 8px; border-radius:6px;">⏳ Chưa gửi</span>`;
 
-                renderMakePostsTable(posts);
+                    html += `<tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:10px 12px;">
+                            <div style="font-weight:600; color:#1e293b;">${p.title}</div>
+                            <a href="/blog/${p.slug || p.id}" target="_blank" style="font-size:0.75rem; color:#4f46e5; text-decoration:none;">/blog/${p.slug || p.id}</a>
+                        </td>
+                        <td style="padding:10px 12px;">
+                            <span style="font-size:0.75rem; font-weight:bold; color:${p.status==='published'?'#059669':'#d1fae5'}; background:${p.status==='published'?'#d1fae5':'#fef3c7'}; padding:2px 6px; border-radius:4px;">
+                                ${p.status==='published'?'📢 Đã xuất bản':'📝 Bài nháp'}
+                            </span>
+                        </td>
+                        <td style="padding:10px 12px;">${makeStatusHtml}</td>
+                        <td style="padding:10px 12px; text-align:right;">
+                            <button class="btn" style="background:#4f46e5; color:white; font-size:0.75rem; font-weight:bold; padding:5px 10px; border-radius:6px;" onclick="apShareMakePost('${p.id}', this)">⚡ Share Make.com</button>
+                        </td>
+                    </tr>`;
+                });
+                tableBody.innerHTML = html;
             } catch(e) {
                 tableBody.innerHTML = `<tr><td colspan="4" style="padding:15px; text-align:center; color:#ef4444;">Lỗi: ${e.message}</td></tr>`;
             }
-        }
-
-        function filterMakePostsTable() {
-            const query = (document.getElementById('makeSearchInput')?.value || '').toLowerCase().trim();
-            if (!query) return renderMakePostsTable(cachedMakePosts);
-            const filtered = cachedMakePosts.filter(p => 
-                (p.title || '').toLowerCase().includes(query) || 
-                (p.slug || '').toLowerCase().includes(query)
-            );
-            renderMakePostsTable(filtered);
-        }
-
-        function renderMakePostsTable(posts) {
-            const tableBody = document.getElementById('makeTabPostsTableBody');
-            if (!tableBody) return;
-            if (posts.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="4" style="padding:15px; text-align:center; color:#94a3b8;">Không có bài viết nào khớp từ khóa.</td></tr>';
-                return;
-            }
-            let html = '';
-            posts.forEach(p => {
-                const makeShared = !!p.make_shared_at;
-                const makeStatusHtml = makeShared 
-                    ? `<span style="color:#059669; font-weight:bold; background:#d1fae5; padding:3px 8px; border-radius:6px; font-size:0.75rem;">✅ Đã gửi Make.com (${new Date(p.make_shared_at).toLocaleDateString('vi-VN')})</span>` 
-                    : `<span style="color:#d97706; font-weight:bold; background:#fef3c7; padding:3px 8px; border-radius:6px; font-size:0.75rem;">⏳ Chưa gửi</span>`;
-
-                html += `<tr style="border-bottom:1px solid #e2e8f0;">
-                    <td style="padding:10px 12px;">
-                        <div style="font-weight:600; color:#1e293b;">${p.title}</div>
-                        <a href="/blog/${p.slug || p.id}" target="_blank" style="font-size:0.75rem; color:#4f46e5; text-decoration:none;">/blog/${p.slug || p.id}</a>
-                    </td>
-                    <td style="padding:10px 12px;">
-                        <span style="font-size:0.75rem; font-weight:bold; color:${p.status==='published'?'#059669':'#d97706'}; background:${p.status==='published'?'#d1fae5':'#fef3c7'}; padding:2px 6px; border-radius:4px;">
-                            ${p.status==='published'?'📢 Đã xuất bản':'📝 Bài nháp'}
-                        </span>
-                    </td>
-                    <td style="padding:10px 12px;">${makeStatusHtml}</td>
-                    <td style="padding:10px 12px; text-align:right;">
-                        <button class="btn" style="background:#4f46e5; color:white; font-size:0.75rem; font-weight:bold; padding:5px 10px; border-radius:6px;" onclick="apShareMakePost('${p.id}', this)">⚡ Share Make.com</button>
-                    </td>
-                </tr>`;
-            });
-            tableBody.innerHTML = html;
         }
 
         async function apSaveFacebookSettings(silent = false) {
@@ -4343,7 +4407,12 @@
             if (tabId === 'tab-indexing') {
                 loadGoogleIndexingConfig();
             } else if (tabId === 'tab-telegram' || tabId === 'tab-facebook') {
-                loadPrivateSettings().then(() => loadIndexingPosts());
+                if (document.getElementById('ap_tg_token')) document.getElementById('ap_tg_token').value = storeSettings.telegramToken || '';
+                if (document.getElementById('ap_tg_chatid')) document.getElementById('ap_tg_chatid').value = storeSettings.telegramChatId || '';
+                if (document.getElementById('ap_tg_blog_token')) document.getElementById('ap_tg_blog_token').value = storeSettings.telegramBlogToken || '';
+                if (document.getElementById('ap_tg_blog_chatid')) document.getElementById('ap_tg_blog_chatid').value = storeSettings.telegramBlogChatId || '';
+                if (document.getElementById('ap_tg_blog_auto')) document.getElementById('ap_tg_blog_auto').checked = storeSettings.autoTelegramShare !== 'false';
+                loadIndexingPosts();
             }
         }
 
@@ -5605,7 +5674,7 @@
         function updateCronEndpointUI() {
             const el = document.getElementById('cronEndpointInput');
             if (el) {
-                const origin = window.location.origin || 'https://dhtk.vercel.app';
+                const origin = window.location.origin || 'https://thohong.top';
                 el.value = origin + '/api/cron/auto-blog';
             }
         }
