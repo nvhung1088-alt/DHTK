@@ -19,12 +19,9 @@ if (!JWT_SECRET) {
 
 // Cho phep cac domain hop le
 const ALLOWED_ORIGINS = [
-    'https://dhtk.vercel.app',
-    'https://donghangtietkiem.com',
-    'https://www.donghangtietkiem.com',
-    'https://thohong.vercel.app',
     'https://thohong.top',
     'https://www.thohong.top',
+    'https://thohong.vercel.app',
     'http://localhost:3000',
     'http://localhost:3500'
 ];
@@ -652,7 +649,7 @@ function detectStoreTopic(text) {
         || /bán buôn|giá sỉ|tổng kho|nhập sỉ|sỉ lẻ|đại lý/i.test(lower))
         return 'wholesale_general';
     
-    return 'packaging_supplies';
+    return 'general';
 }
 
 function buildSmartSearchTerms(keyword, topic) {
@@ -691,10 +688,9 @@ function getTopicCategoryKeywords(topic) {
         'stationery':       ['bút', 'sổ', 'vở', 'tập', 'bóp', 'hộp bút', 'giấy', 'kéo'],
         'gifts_toys':       ['quà', 'gấu bông', 'móc khóa', 'đồ chơi', 'sticker', 'figure'],
         'wholesale_general': ['sỉ', 'phụ kiện', 'thời trang', 'cute'],
-        'packaging_supplies': ['thùng', 'hộp', 'carton', 'băng dính', 'băng keo', 'xốp nổ', 'màng bọc', 'pe', 'túi gói hàng', 'túi zip'],
         'general':          ['phụ kiện', 'cute', 'thời trang', 'hot']
     };
-    return map[topic] || map['packaging_supplies'];
+    return map[topic] || map['general'];
 }
 
 
@@ -702,10 +698,10 @@ function sanitizeImageUrl(url) {
     if (!url) return '';
     let u = String(url).trim();
     if (!u.startsWith('http')) {
-        u = `https://dhtk.vercel.app${u.startsWith('/') ? '' : '/'}${u}`;
+        u = `https://thohong.top${u.startsWith('/') ? '' : '/'}${u}`;
     }
-    u = u.replace(/^https?:\/\/localhost:\d+\//gi, 'https://dhtk.vercel.app/');
-    u = u.replace(/^https?:\/\/(www\.)?(thohong\.top|thohong\.vercel\.app)\/media__/gi, 'https://dhtk.vercel.app/media__');
+    u = u.replace(/^https?:\/\/localhost:\d+\//gi, 'https://thohong.top/');
+    u = u.replace(/^https?:\/\/(www\.)?dhtk\.vercel\.app\/media__/gi, 'https://thohong.top/media__');
     return u;
 }
 
@@ -746,7 +742,7 @@ async function extractBlogImages(blogData) {
 
     const postTopic = detectStoreTopic((blogData.title || '') + ' ' + (blogData.keyword || ''));
 
-    // 3. Tìm các sản phẩm trong CSDL ưu tiên theo từ khóa của bài viết
+    // 3. Nếu ít hơn 4 ảnh, ưu tiên tìm ảnh sản phẩm liên quan trong web trước (theo từ khóa bài viết)
     if (images.length < 4) {
         try {
             let topicKeywords = [];
@@ -754,24 +750,27 @@ async function extractBlogImages(blogData) {
             topicKeywords = [...searchTerms.phrases, ...searchTerms.bigrams];
             
             if (topicKeywords.length === 0) {
-                topicKeywords = ['thùng', 'hộp', 'carton', 'băng dính', 'băng keo', 'xốp nổ', 'màng bọc', 'pe', 'túi gói hàng', 'túi zip'];
+                topicKeywords = getTopicCategoryKeywords(postTopic);
             }
-            for (const kw of topicKeywords) {
-                if (images.length >= 4) break;
-                const pRes = await db.execute({
-                    sql: "SELECT imageUrl FROM products WHERE imageUrl IS NOT NULL AND imageUrl != '' AND (name LIKE ? OR category LIKE ?) LIMIT 5",
-                    args: [`%${kw}%`, `%${kw}%`]
-                });
-                for (const p of (pRes.rows || [])) {
+
+            if (topicKeywords.length > 0) {
+                for (const kw of topicKeywords) {
                     if (images.length >= 4) break;
-                    const pUrl = sanitizeImageUrl(p.imageUrl);
-                    if (pUrl && !images.includes(pUrl)) {
-                        images.push(pUrl);
+                    const pRes = await db.execute({
+                        sql: "SELECT imageUrl FROM products WHERE imageUrl IS NOT NULL AND imageUrl != '' AND (name LIKE ? OR category LIKE ?) LIMIT 5",
+                        args: [`%${kw}%`, `%${kw}%`]
+                    });
+                    for (const p of (pRes.rows || [])) {
+                        if (images.length >= 4) break;
+                        const pUrl = sanitizeImageUrl(p.imageUrl);
+                        if (pUrl && !images.includes(pUrl)) {
+                            images.push(pUrl);
+                        }
                     }
                 }
             }
         } catch(e) {
-            console.error('[BLOG IMAGES MATCH ERROR]', e.message);
+            console.error('[STRICT BLOG IMAGES MATCH ERROR]', e.message);
         }
     }
 
@@ -793,7 +792,7 @@ async function extractBlogImages(blogData) {
     
     // Nếu thật sự CSDL quá ít ảnh hoặc rỗng, dùng ảnh cứng để đảm bảo tuyệt đối Make.com không bị lỗi
     const absoluteFallback = [
-        'https://donghangtietkiem.com/media__1784218914381.png',
+        'https://thohong.top/media__1784218914381.png',
         'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800',
         'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800',
         'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800'
@@ -826,7 +825,7 @@ async function triggerMakeWebhook(blogData, isManual = false) {
         let rawSlug = String(blogData.slug || blogData.id || '').trim();
         rawSlug = rawSlug.replace(/^https?:\/\/[^\/]+/i, '').replace(/^\/?blog\/?/i, '').replace(/^\/+/, '');
         let cleanSlug = rawSlug;
-        let finalLink = `https://donghangtietkiem.com/blog/${rawSlug}`;
+        let finalLink = `https://thohong.top/blog/${rawSlug}`;
 
         const imagesList = await extractBlogImages(blogData);
         let finalImage = imagesList[0];
@@ -843,7 +842,7 @@ async function triggerMakeWebhook(blogData, isManual = false) {
 
         const payload = {
             id: blogData.id || blogData.slug || 'sample-post',
-            title: blogData.title || 'Mẫu bài viết thử nghiệm từ Đồng Hành Tiết Kiệm',
+            title: blogData.title || 'Mẫu bài viết thử nghiệm từ Thỏ Hồng',
             slug: cleanSlug || 'mau-bai-viet-thu-nghiem',
             excerpt: cleanExcerpt,
             content: blogData.content || '',
@@ -930,8 +929,8 @@ app.post('/api/admin/social/make-share-now', authenticateToken, async (req, res)
                 id: 'sample-post-001',
                 title: '🎉 Bài viết thử nghiệm phân phối Đa Kênh qua Make.com!',
                 slug: 'bai-viet-thu-nghiem-make-automation',
-                excerpt: 'Tự động xuất bản bài viết tin tức mới nhất từ hệ thống website Đồng Hành Tiết Kiệm lên Facebook, Instagram, Telegram, Zalo OA...',
-                image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=1080&q=80'
+                excerpt: 'Tự động xuất bản bài viết tin tức mới nhất từ hệ thống website Thỏ Hồng lên Facebook, Instagram, Telegram, Zalo OA...',
+                image: 'https://thohong.top/media__1784598666512.png'
             };
         }
 
@@ -961,8 +960,6 @@ app.post('/api/admin/social/make-share-batch', authenticateToken, async (req, re
         for (const post of unsharedPosts) {
             const r = await triggerMakeWebhook(post, true);
             if (r.success) count++;
-            // Thêm delay 5 phút (300000ms) giữa các bài viết theo yêu cầu
-            await new Promise(resolve => setTimeout(resolve, 300000));
         }
 
         res.json({ success: true, message: `⚡ Đã gửi hàng loạt ${count}/${unsharedPosts.length} bài viết sang Make.com Webhook thành công!` });
@@ -1916,7 +1913,7 @@ async function performPosSync(posCredentials) {
                     String(inv.warehouse_id) === String(posCredentials.warehouseId) || String(inv.id) === String(posCredentials.warehouseId)
                 );
                 if (whInv) {
-                    return whInv.remain_quantity ?? whInv.actual_remain_quantity ?? whInv.available_quantity ?? whInv.available ?? inv.quantity ?? 0;
+                    return whInv.remain_quantity ?? whInv.actual_remain_quantity ?? whInv.available_quantity ?? whInv.available ?? whInv.quantity ?? 0;
                 }
             }
             return warehouses.reduce((sum, inv) => 
@@ -2328,6 +2325,7 @@ app.post('/api/admin/blog', authenticateToken, async (req, res) => {
             
             try { await shareBlogToTelegram(fullBlogUrl, title, finalSummary, cover_image || '', id); } 
             catch(e) { console.error('[TELEGRAM POST ERROR]', e.message); }
+            
             // Native Facebook Share bị loại bỏ vì đã dùng Make.com Webhook thay thế
             
             try { 
@@ -2675,18 +2673,19 @@ app.post('/api/admin/blog/suggest-keywords', authenticateToken, async (req, res)
         const storeName = settingsMap['storeName'] || 'Thỏ Hồng / ĐHTK';
 
         const prompt = `Bạn là chuyên gia SEO hàng đầu cho website e-commerce Việt Nam chuyên bán sỉ/lẻ.
-Cửa hàng "${storeName}" kinh doanh tại Tổng Kho, chuyên cung cấp: Vật tư đóng gói, thùng carton, băng dính, xốp nổ...
-Đối tượng khách hàng: Chủ shop online, người bán hàng Shopee/TikTok Shop cần mua vật tư đóng gói giá sỉ.
+Cửa hàng "${storeName}" kinh doanh tại Tổng Kho, chuyên bán sỉ các nhóm ngành hàng: ${categories.join(', ')}.
+Đối tượng khách hàng: Chủ shop online, đại lý nhỏ, người bán hàng trên Shopee/TikTok Shop/Facebook.
 
 Hãy gợi ý 10 từ khóa SEO long-tail tiềm năng nhất. MỖI TỪ KHÓA PHẢI:
-- Là cụm từ 4-8 từ, mô tả cụ thể sản phẩm hoặc nhu cầu mua sỉ (ví dụ: "nguồn sỉ thùng carton đóng hàng shopee", "xưởng sản xuất xốp chống sốc giá rẻ")
+- Là cụm từ 4-8 từ, mô tả cụ thể sản phẩm hoặc nhu cầu mua sỉ (ví dụ: "nguồn hàng kẹp tóc cute giá sỉ", "xưởng sản xuất băng đô vải Hàn Quốc")
 - Có search intent rõ ràng (mua hàng, tìm nguồn sỉ, so sánh giá)
-- TUYỆT ĐỐI KHÔNG gợi ý từ khóa về ngành hàng khác (chỉ liên quan vật tư đóng gói)
+- Khớp với ít nhất 1 nhóm ngành hàng đang bán: ${categories.join(', ')}
+- TUYỆT ĐỐI KHÔNG gợi ý từ khóa về ngành hàng mà cửa hàng KHÔNG bán
 
 ĐA DẠNG hóa từ khóa qua 3 nhóm intent:
-- 3-4 từ khóa "mua sỉ/nhập hàng" (ví dụ: "nhập sỉ túi gói hàng niêm phong")
-- 3-4 từ khóa "hướng dẫn/review" (ví dụ: "cách gói hàng quần áo gửi bưu điện")  
-- 2-3 từ khóa "so sánh/kinh nghiệm" (ví dụ: "kinh nghiệm tối ưu chi phí đóng gói")
+- 3-4 từ khóa "mua sỉ/nhập hàng" (ví dụ: "nhập sỉ phụ kiện tóc giá xưởng")
+- 3-4 từ khóa "hướng dẫn/review" (ví dụ: "top 10 mẫu kẹp tóc hot trend 2026")  
+- 2-3 từ khóa "so sánh/kinh nghiệm" (ví dụ: "kinh nghiệm mở shop phụ kiện online")
 
 Trả về duy nhất 1 mảng JSON array:
 [{"keyword": "...", "reason": "...", "difficulty": "Dễ|Trung bình|Khó"}]
@@ -2861,6 +2860,8 @@ app.post('/api/admin/blog/generate', authenticateToken, async (req, res) => {
             }
         }
 
+        // Không dùng fallback lấy ngẫu nhiên 5 sản phẩm để tránh nhầm sản phẩm không liên quan
+
 
         const selectedProducts = Array.from(matchedProductsMap.values());
         
@@ -2916,7 +2917,7 @@ app.post('/api/admin/blog/generate', authenticateToken, async (req, res) => {
 Hãy viết 1 bài blog CHẤT LƯỢNG CAO, HẤP DẪN, CHUẨN SEO cho cửa hàng "${storeName}" dựa trên từ khóa chính: "${keyword}".
 
 🎯 PHONG CÁCH VIẾT:
-- Văn phong: Tư vấn kinh doanh thân thiện, chuyên nghiệp, tập trung vào giải pháp tối ưu chi phí. Viết như đang trò chuyện tư vấn trực tiếp cho chủ shop online, kho hàng.
+- Văn phong: Tư vấn kinh doanh thân thiện, năng động, bắt trend. Viết như đang trò chuyện tư vấn trực tiếp cho chủ shop online.
 - Sử dụng emoji phù hợp ở đầu mỗi heading H2 để bài viết sinh động.
 - Xen kẽ câu hỏi tu từ để tạo tương tác.
 
@@ -2928,22 +2929,22 @@ ${imagesListPrompt}
 
 📋 CẤU TRÚC BÀI VIẾT BẮT BUỘC:
 
-1. **MỞ BÀI (100-150 từ)**: Hook hấp dẫn, nêu pain point của khách hàng mục tiêu (đóng gói chậm, tốn chi phí, hàng hóa móp méo). Chèn từ khóa chính ngay 2 câu đầu.
+1. **MỞ BÀI (100-150 từ)**: Hook hấp dẫn, nêu pain point của khách hàng mục tiêu. Chèn từ khóa chính ngay 2 câu đầu.
 
-2. **PHẦN 1 — Tại sao cần giải pháp đóng gói chuyên nghiệp? (H2)**: Phân tích tầm quan trọng liên quan đến "${keyword}".
+2. **PHẦN 1 — Xu hướng & Thị trường (H2)**: Phân tích xu hướng thị trường liên quan đến "${keyword}", tại sao đây là cơ hội kinh doanh tốt.
 
-3. **PHẦN 2 — Gợi ý Vật tư đóng gói tối ưu (H2)**: Giới thiệu các loại vật tư phù hợp. CHÈN 1-2 internal link sản phẩm từ danh sách.
+3. **PHẦN 2 — Top Mẫu Hot Trend (H2)**: Giới thiệu 3-5 mẫu sản phẩm đang hot nhất, mô tả chi tiết từng mẫu. CHÈN 1-2 internal link sản phẩm từ danh sách.
 
-4. **PHẦN 3 — Bảng Giá Sỉ Tham Khảo (H2)**: BẮT BUỘC tạo 1 bảng Markdown table với cột: Vật tư | Giá lẻ | Giá sỉ (số lượng lớn). Dùng mức giá tham khảo hợp lý.
+4. **PHẦN 3 — Bảng Giá Sỉ Tham Khảo (H2)**: BẮT BUỘC tạo 1 bảng Markdown table với cột: Mặt hàng | Giá lẻ | Giá sỉ (từ 10 cái) | Giá sỉ VIP (từ 100 cái). Dùng mức giá hợp lý cho ngành hàng.
 
-5. **PHẦN 4 — Lý Do Chọn mua vật tư tại ${storeName} (H2)**: 4-5 bullet points nêu ưu điểm: Giá xưởng, Đa dạng kích thước, Chất lượng dai/dày, Giao hỏa tốc.
+5. **PHẦN 4 — Lý Do Chọn ${storeName} (H2)**: 4-5 bullet points nêu ưu điểm: Giá gốc tổng kho, Chất lượng đảm bảo, Hỗ trợ đổi trả, Ship COD toàn quốc, Tư vấn 1-1.
 
-6. **PHẦN 5 — Hỏi Đáp (H2 — FAQ)**: BẮT BUỘC viết 3-4 câu hỏi đáp dạng Q&A.
-   - **Q: Có cắt/in kích thước theo yêu cầu không?** A: ...
-   - **Q: Số lượng bao nhiêu thì được giá sỉ?** A: ...
-   - **Q: Ship hàng cồng kềnh như xốp nổ tính sao?** A: ...
+6. **PHẦN 5 — Hỏi Đáp Nhập Sỉ (H2 — FAQ)**: BẮT BUỘC viết 3-4 câu hỏi đáp dạng Q&A.
+   - **Q: Đặt hàng sỉ tối thiểu bao nhiêu?** A: ...
+   - **Q: Có hỗ trợ đổi trả hàng lỗi không?** A: ...
+   - **Q: Ship hàng mất bao lâu?** A: ...
 
-7. **KẾT BÀI + CTA (150 từ)**: Tóm tắt + Kêu gọi hành động mạnh: "Liên hệ ngay ${storeName} qua Zalo/Hotline để nhận báo giá sỉ vật tư đóng gói ưu đãi nhất!" Chèn link sản phẩm cuối cùng.
+7. **KẾT BÀI + CTA (150 từ)**: Tóm tắt + Kêu gọi hành động mạnh: "Liên hệ ngay ${storeName} qua Zalo/Hotline để nhận báo giá sỉ ưu đãi nhất!" Chèn link sản phẩm cuối cùng.
 
 📐 YÊU CẦU SEO KỸ THUẬT:
 - Tổng: 1200-1800 từ. Đoạn văn 3-4 câu, thân thiện mobile.
@@ -3509,7 +3510,7 @@ app.post('/api/admin/blog/auto-config', authenticateToken, async (req, res) => {
 
 let isAutoBlogRunning = false;
 
-async function executeAutoBlogCycle(host = 'dhtk.vercel.app') {
+async function executeAutoBlogCycle(host = 'thohong.top') {
     if (isAutoBlogRunning) return { skipped: true, reason: 'Already running' };
     isAutoBlogRunning = true;
 
@@ -3541,8 +3542,8 @@ async function executeAutoBlogCycle(host = 'dhtk.vercel.app') {
             let suggestPrompt = settingsMap['autoBlogSuggestPrompt'] || '';
             if (!suggestPrompt.trim()) {
                 suggestPrompt = `Bạn là chuyên gia SEO hàng đầu cho website e-commerce Việt Nam.
-Cửa hàng "${storeName}" chuyên kinh doanh vật tư đóng gói, thùng carton, băng dính.
-Hãy gợi ý 10 từ khóa SEO long-tail tiềm năng nhất cho blog của cửa hàng.
+Cửa hàng "${storeName}" chuyên kinh doanh các nhóm ngành hàng: ${categories.join(', ')}.
+Hãy gợi ý 10 từ khóa SEO tiềm năng nhất cho blog của cửa hàng.
 Trả về kết quả duy nhất 1 mảng JSON array: [{"keyword": "...", "reason": "...", "difficulty": "Dễ|Trung bình|Khó"}]`;
             } else {
                 suggestPrompt = suggestPrompt.replace(/\${storeName}/g, storeName).replace(/\${categories}/g, categories.join(', '));
@@ -3583,7 +3584,7 @@ Trả về kết quả duy nhất 1 mảng JSON array: [{"keyword": "...", "reas
             if (!kwRow) {
                 const catResult = await db.execute("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' ORDER BY RANDOM() LIMIT 3");
                 const cats = (catResult.rows || []).map(r => r.category).filter(Boolean);
-                const chosenCat = cats[0] || 'vật tư đóng gói';
+                const chosenCat = cats[0] || 'phụ kiện thời trang';
 
                 const generatedKw = `Kinh nghiệm chọn mua ${chosenCat} sỉ lẻ chất lượng cao`;
                 const kwId = 'kw_' + Date.now();
@@ -3724,7 +3725,7 @@ Trả về kết quả duy nhất 1 mảng JSON array: [{"keyword": "...", "reas
 Hãy viết 1 bài blog CHẤT LƯỢNG CAO, HẤP DẪN, CHUẨN SEO cho cửa hàng "${storeName}" dựa trên từ khóa chính: "${keyword}".
 
 🎯 PHONG CÁCH VIẾT:
-- Văn phong: Tư vấn kinh doanh thân thiện, chuyên nghiệp, tập trung vào giải pháp tối ưu chi phí. Viết như đang trò chuyện tư vấn trực tiếp cho chủ shop online, kho hàng.
+- Văn phong: Tư vấn kinh doanh thân thiện, năng động, bắt trend. Viết như đang trò chuyện tư vấn trực tiếp cho chủ shop online.
 - Sử dụng emoji phù hợp ở đầu mỗi heading H2 để bài viết sinh động.
 - Xen kẽ câu hỏi tu từ để tạo tương tác.
 
@@ -3736,22 +3737,22 @@ ${imagesListPrompt}
 
 📋 CẤU TRÚC BÀI VIẾT BẮT BUỘC:
 
-1. **MỞ BÀI (100-150 từ)**: Hook hấp dẫn, nêu pain point của khách hàng mục tiêu (đóng gói chậm, tốn chi phí, hàng hóa móp méo). Chèn từ khóa chính ngay 2 câu đầu.
+1. **MỞ BÀI (100-150 từ)**: Hook hấp dẫn, nêu pain point của khách hàng mục tiêu. Chèn từ khóa chính ngay 2 câu đầu.
 
-2. **PHẦN 1 — Tại sao cần giải pháp đóng gói chuyên nghiệp? (H2)**: Phân tích tầm quan trọng liên quan đến "${keyword}".
+2. **PHẦN 1 — Xu hướng & Thị trường (H2)**: Phân tích xu hướng thị trường liên quan đến "${keyword}", tại sao đây là cơ hội kinh doanh tốt.
 
-3. **PHẦN 2 — Gợi ý Vật tư đóng gói tối ưu (H2)**: Giới thiệu các loại vật tư phù hợp. CHÈN 1-2 internal link sản phẩm từ danh sách.
+3. **PHẦN 2 — Top Mẫu Hot Trend (H2)**: Giới thiệu 3-5 mẫu sản phẩm đang hot nhất, mô tả chi tiết từng mẫu. CHÈN 1-2 internal link sản phẩm từ danh sách.
 
-4. **PHẦN 3 — Bảng Giá Sỉ Tham Khảo (H2)**: BẮT BUỘC tạo 1 bảng Markdown table với cột: Vật tư | Giá lẻ | Giá sỉ (số lượng lớn). Dùng mức giá tham khảo hợp lý.
+4. **PHẦN 3 — Bảng Giá Sỉ Tham Khảo (H2)**: BẮT BUỘC tạo 1 bảng Markdown table với cột: Mặt hàng | Giá lẻ | Giá sỉ (từ 10 cái) | Giá sỉ VIP (từ 100 cái). Dùng mức giá hợp lý cho ngành hàng.
 
-5. **PHẦN 4 — Lý Do Chọn mua vật tư tại ${storeName} (H2)**: 4-5 bullet points nêu ưu điểm: Giá xưởng, Đa dạng kích thước, Chất lượng dai/dày, Giao hỏa tốc.
+5. **PHẦN 4 — Lý Do Chọn ${storeName} (H2)**: 4-5 bullet points nêu ưu điểm: Giá gốc tổng kho, Chất lượng đảm bảo, Hỗ trợ đổi trả, Ship COD toàn quốc, Tư vấn 1-1.
 
-6. **PHẦN 5 — Hỏi Đáp (H2 — FAQ)**: BẮT BUỘC viết 3-4 câu hỏi đáp dạng Q&A.
-   - **Q: Có cắt/in kích thước theo yêu cầu không?** A: ...
-   - **Q: Số lượng bao nhiêu thì được giá sỉ?** A: ...
-   - **Q: Ship hàng cồng kềnh như xốp nổ tính sao?** A: ...
+6. **PHẦN 5 — Hỏi Đáp Nhập Sỉ (H2 — FAQ)**: BẮT BUỘC viết 3-4 câu hỏi đáp dạng Q&A.
+   - **Q: Đặt hàng sỉ tối thiểu bao nhiêu?** A: ...
+   - **Q: Có hỗ trợ đổi trả hàng lỗi không?** A: ...
+   - **Q: Ship hàng mất bao lâu?** A: ...
 
-7. **KẾT BÀI + CTA (150 từ)**: Tóm tắt + Kêu gọi hành động mạnh: "Liên hệ ngay ${storeName} qua Zalo/Hotline để nhận báo giá sỉ vật tư đóng gói ưu đãi nhất!" Chèn link sản phẩm cuối cùng.
+7. **KẾT BÀI + CTA (150 từ)**: Tóm tắt + Kêu gọi hành động mạnh: "Liên hệ ngay ${storeName} qua Zalo/Hotline để nhận báo giá sỉ ưu đãi nhất!" Chèn link sản phẩm cuối cùng.
 
 📐 YÊU CẦU SEO KỸ THUẬT:
 - Tổng: 1200-1800 từ. Đoạn văn 3-4 câu, thân thiện mobile.
@@ -3857,8 +3858,7 @@ ${imagesListPrompt}
 }
 
 app.post('/api/admin/blog/auto-trigger', authenticateToken, async (req, res) => {
-    isAutoBlogRunning = false; // Reset lock cho trigger thủ công từ Admin CP
-    const host = req.headers['x-forwarded-host'] || req.headers.host || 'donghangtietkiem.com';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'thohong.top';
     const result = await executeAutoBlogCycle(host);
     if (result.error) return res.status(400).json({ error: result.error });
     res.json(result);
@@ -3901,7 +3901,7 @@ app.all('/api/cron/auto-blog', async (req, res) => {
 
         // Đã đến chu kỳ -> Thực thi viết bài tự động
         console.log(`[EXTERNAL CRON /api/cron/auto-blog] Triggering auto-blog cycle (Schedule: ${schedule})...`);
-        const host = req.headers['x-forwarded-host'] || req.headers.host || 'donghangtietkiem.com';
+        const host = req.headers['x-forwarded-host'] || req.headers.host || 'thohong.top';
         const execResult = await executeAutoBlogCycle(host);
 
         if (execResult.error) {
@@ -3944,7 +3944,7 @@ setInterval(async () => {
 
         if (now - lastRunTime >= targetInterval) {
             console.log(`[AUTO-BLOG CRON] Scheduled time reached (${schedule}). Executing auto-blog cycle...`);
-            await executeAutoBlogCycle('dhtk.vercel.app');
+            await executeAutoBlogCycle('thohong.top');
         }
     } catch(e) {
         console.error('[AUTO-BLOG CRON ERROR]', e.message);
@@ -4091,9 +4091,10 @@ app.use(async (req, res, next) => {
                 let storeName = 'Thỏ Hồng';
 
                 if (isBlog) {
+                    const cleanBlogSlug = decodedSlug.replace(/^\/?blog\/?/i, '').trim();
                     const batchRes = await db.executeBatch([
                         { sql: "SELECT key, value FROM settings WHERE key IN ('storeName')", args: [] },
-                        { sql: "SELECT title, summary, content, cover_image, created_at, updated_at FROM blog_posts WHERE slug = ? OR slug = ? OR id = ? LIMIT 1", args: [slug, decodedSlug, decodedSlug] }
+                        { sql: "SELECT id, title, summary, content, imageUrl, createdAt, updatedAt FROM blogs WHERE slug = ? OR id = ? OR LOWER(slug) = ? LIMIT 1", args: [cleanBlogSlug, cleanBlogSlug, cleanBlogSlug.toLowerCase()] }
                     ]);
                     const settingsRows = batchRes.results?.[0]?.response?.result?.rows || [];
                     settingsRows.forEach(r => { if (r[0]?.value === 'storeName') storeName = r[1]?.value || storeName; });
@@ -4101,23 +4102,26 @@ app.use(async (req, res, next) => {
                     let blogRows = batchRes.results?.[1]?.response?.result?.rows || [];
                     if (blogRows.length === 0) {
                         const fbRes = await db.execute({
-                            sql: "SELECT title, summary, content, cover_image, created_at, updated_at FROM blog_posts WHERE slug LIKE ? LIMIT 1",
-                            args: [`%${decodedSlug}%`]
+                            sql: "SELECT id, title, summary, content, imageUrl, createdAt, updatedAt FROM blogs WHERE LOWER(title) LIKE ? OR LOWER(slug) LIKE ? LIMIT 1",
+                            args: [`%${cleanBlogSlug.toLowerCase()}%`, `%${cleanBlogSlug.toLowerCase()}%`]
                         });
                         blogRows = fbRes.rows || [];
                     }
 
                     if (blogRows.length > 0) {
                         const row = blogRows[0];
-                        const bTitle = row.title || row[0]?.value || '';
-                        const bSummary = row.summary || row[1]?.value || '';
-                        const bContent = row.content || row[2]?.value || '';
-                        const bCover = row.cover_image || row[3]?.value || '';
-                        const bCreated = row.created_at || row[4]?.value || new Date().toISOString();
-                        const bUpdated = row.updated_at || row[5]?.value || bCreated;
+                        const bTitle = row.title || row[1]?.value || row[1] || '';
+                        const bSummary = row.summary || row[2]?.value || row[2] || '';
+                        const bContent = row.content || row[3]?.value || row[3] || '';
+                        const bCover = row.imageUrl || row[4]?.value || row[4] || '';
+                        const bCreated = row.createdAt || row[5]?.value || row[5] || new Date().toISOString();
+                        const bUpdated = row.updatedAt || row[6]?.value || row[6] || bCreated;
+
+                        const rawText = bSummary || bContent;
+                        const cleanSummary = String(rawText).replace(/<[^>]*>/g, '').replace(/[#*>\-\n\r]/g, ' ').replace(/\s+/g, ' ').trim();
 
                         title = `${bTitle} | ${storeName}`;
-                        desc = bSummary || bContent.replace(/[#*>\-\n]/g, ' ').substring(0, 160).trim();
+                        desc = cleanSummary.substring(0, 155) || `Đọc bài viết ${bTitle} mới nhất tại ${storeName}. Mẹo hay và báo giá văn phòng phẩm tốt nhất.`;
                         if (bCover) image = bCover;
                         blogPostObj = { title: bTitle, desc, image, created: bCreated, updated: bUpdated };
                     }
@@ -4209,8 +4213,9 @@ app.use(async (req, res, next) => {
         }
     }
 
-    // Inject dynamic Meta and Open Graph tags into HTML response
+    // Inject dynamic Meta, Canonical and Open Graph tags into HTML response
     let out = html
+        .replace(/<head>/i, `<head>\n    <link rel="canonical" href="${escapeHtmlServer(fullUrl)}">`)
         .replace(/<title>.*?<\/title>/i, `<title>${escapeHtmlServer(title)}</title>`)
         .replace(/<meta name="description" id="seoDescription" content=".*?">/i, `<meta name="description" id="seoDescription" content="${escapeHtmlServer(desc)}">`)
         .replace(/<meta property="og:title" id="ogTitle" content=".*?">/i, `<meta property="og:title" id="ogTitle" content="${escapeHtmlServer(title)}">`)
