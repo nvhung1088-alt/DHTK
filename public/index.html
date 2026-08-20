@@ -1783,7 +1783,6 @@
                 let opts = [];
                 let hasOpt1 = rG.some(r => r[2] && r[2].trim() !== '');
                 let hasOpt2 = rG.some(r => r[3] && r[3].trim() !== '');
-                
                 if(hasOpt1) {
                     let v = new Set(); rG.forEach(r=>{if(r[2] && r[2].trim() !== '') v.add(r[2].trim())});
                     opts.push({id:'opt_1', name:'Phân loại 1', values:Array.from(v), hidden:false});
@@ -1910,6 +1909,7 @@
             excelRows = allRows.slice(1);
             
             document.getElementById('importCount').innerText = excelRows.length;
+            if (document.getElementById('importCount2')) document.getElementById('importCount2').innerText = excelRows.length;
             
             // Auto-detect columns
             const normalizeStr = (s) => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -2096,8 +2096,8 @@
                 };
 
                 let product = { 
-                    id: targetId, 
-                    name: pName || sku, 
+                    id: pId, 
+                    name: pName, 
                     category: cat, 
                     images: images, 
                     description: description, 
@@ -2110,11 +2110,12 @@
                     options: [], 
                     variants: [defaultVariant] 
                 };
-
-                if (inBatchIndex > -1) {
-                    newImportedProducts[inBatchIndex] = product;
+                
+                const existingProdIdx = products.findIndex(x=>x.name.toLowerCase() === pName.toLowerCase());
+                if(appendMode && existingProdIdx > -1) {
+                    products[existingProdIdx] = product;
                 } else {
-                    newImportedProducts.push(product);
+                    products.push(product);
                 }
             });
 
@@ -2126,50 +2127,6 @@
                     </div>
                 </div>
             `;
-            
-            const CHUNK_SIZE = 50; 
-            let isFirst = !appendMode; // Xóa DB ở chunk đầu tiên nếu chọn Ghi đè
-
-            async function uploadChunks() {
-                for (let i = 0; i < newImportedProducts.length; i += CHUNK_SIZE) {
-                    const chunk = newImportedProducts.slice(i, i + CHUNK_SIZE);
-                    let current = Math.min(i + CHUNK_SIZE, newImportedProducts.length);
-                    let percent = Math.floor((current / newImportedProducts.length) * 100);
-                    
-                    document.getElementById('importProgressText').innerHTML = `⏳ Đang đẩy lên máy chủ: <strong>${current} / ${newImportedProducts.length}</strong> sản phẩm...`;
-                    document.getElementById('importProgressBar').style.width = percent + '%';
-                    
-                    await fetchAPI('/api/products/import', {
-                        method: 'POST',
-                        body: { products: chunk, clearFirst: (i === 0) ? isFirst : false }
-                    });
-                    
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-
-                // Cập nhật lại mảng products ở bộ nhớ Local
-                if (!appendMode) {
-                    products = newImportedProducts;
-                } else {
-                    newImportedProducts.forEach(newP => {
-                        let matchIdx = products.findIndex(p => p.id === newP.id);
-                        if (matchIdx > -1) {
-                            products[matchIdx] = newP;
-                        } else {
-                            products.push(newP);
-                        }
-                    });
-                }
-
-                renderUI();
-                document.getElementById('excelModal').classList.remove('active');
-                alert(`✅ Đã nhập thành công ${newImportedProducts.length} sản phẩm (Tự động lọc trùng và cập nhật sản phẩm cũ)!`);
-            }
-
-            uploadChunks().catch(e => {
-                alert("Lỗi khi nhập sản phẩm: " + e.message);
-            });
-        }
             
             const CHUNK_SIZE = 50; 
             let isFirst = !appendMode; // Xóa DB ở chunk đầu tiên nếu chọn Ghi đè
