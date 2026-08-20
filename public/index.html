@@ -2116,8 +2116,8 @@
                 };
 
                 let product = { 
-                    id: pId, 
-                    name: pName, 
+                    id: targetId, 
+                    name: pName || sku, 
                     category: cat, 
                     images: images, 
                     description: description, 
@@ -2130,12 +2130,11 @@
                     options: [], 
                     variants: [defaultVariant] 
                 };
-                
-                const existingProdIdx = products.findIndex(x=>x.name.toLowerCase() === pName.toLowerCase());
-                if(appendMode && existingProdIdx > -1) {
-                    products[existingProdIdx] = product;
+
+                if (inBatchIndex > -1) {
+                    newImportedProducts[inBatchIndex] = product;
                 } else {
-                    products.push(product);
+                    newImportedProducts.push(product);
                 }
             });
 
