@@ -2109,110 +2109,16 @@
                     image: images.length > 0 ? images[0] : ''
                 };
 
-                let product = { 
-                    id: targetId, 
-                    name: pName || sku, 
-                    category: cat, 
-                    images: images, 
-                    description: description, 
-                    sku: sku || pName, 
-                    unit: "sp", 
-                    weight: weight, 
-                    costPrice: costPrice,
-                    price: retailPrice,
-                    pricingTiers: tiers, 
-                    options: [], 
-                    variants: [defaultVariant] 
-                };
-
-                newImportedProducts.push(product);
-            });
-
-            document.getElementById('excelStep2').innerHTML = `
-                <div style="text-align:center; padding: 20px;">
-                    <p id="importProgressText" style="margin-bottom:10px; font-weight:bold; color:#1e3a8a;">⏳ Đang chuẩn bị lưu dữ liệu...</p>
-                    <div style="width:100%; background:#e2e8f0; border-radius:10px; height:20px; overflow:hidden;">
-                        <div id="importProgressBar" style="width:0%; height:100%; background:#10b981; transition: width 0.3s;"></div>
-                    </div>
-                </div>
-            `;
-            
-            const CHUNK_SIZE = 50; 
-            let isFirst = !appendMode; // Xóa DB ở chunk đầu tiên nếu chọn Ghi đè
-
-            let totalUpdated = 0;
-            let totalCreated = 0;
-
-            async function uploadChunks() {
-                for (let i = 0; i < newImportedProducts.length; i += CHUNK_SIZE) {
-                    const chunk = newImportedProducts.slice(i, i + CHUNK_SIZE);
-                    let current = Math.min(i + CHUNK_SIZE, newImportedProducts.length);
-                    let percent = Math.floor((current / newImportedProducts.length) * 100);
-                    
-                    document.getElementById('importProgressText').innerHTML = `⏳ Đang đẩy lên máy chủ: <strong>${current} / ${newImportedProducts.length}</strong> sản phẩm...`;
-                    document.getElementById('importProgressBar').style.width = percent + '%';
-                    
-                    const res = await fetchAPI('/api/products/import', {
-                        method: 'POST',
-                        body: { products: chunk, clearFirst: (i === 0) ? isFirst : false }
-                    });
-
-                    if (res && res.updatedCount !== undefined) {
-                        totalUpdated += (res.updatedCount || 0);
-                        totalCreated += (res.createdCount || 0);
-                    }
-                    
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-
-                if (!appendMode) {
-                    products = newImportedProducts;
-                } else {
-                    newImportedProducts.forEach(newP => {
-                        let matchIdx = products.findIndex(p => p.id === newP.id);
-                        if (matchIdx > -1) products[matchIdx] = newP;
-                        else products.push(newP);
-                    });
-                }
-
-                renderUI(); 
-                if (typeof closeModal === 'function') closeModal('excelModal');
-                else document.getElementById('excelModal').classList.remove('active');
-
-                alert(`🎉 BÁO CÁO KẾT QUẢ IMPORT THÀNH CÔNG!\n----------------------------------\n🔄 SP ĐƯỢC CẬP NHẬT (thay đổi dữ liệu SP cũ): ${totalUpdated} / ${newImportedProducts.length}\n✨ SP TẠO MỚI (mới hoàn toàn): ${totalCreated} / ${newImportedProducts.length}\n📦 TỔNG SỐ SẢN PHẨM ĐÃ XỬ LÝ: ${newImportedProducts.length} sản phẩm.`);
-            }
-
-            uploadChunks().catch(e => {
-                alert("❌ Lỗi khi nhập sản phẩm: " + e.message);
-            });
+        function isHideOutOfStockEnabled() {
+            return storeSettings.hideOutOfStock === true || storeSettings.hideOutOfStock === 'true';
         }
 
-        // --- VIEW LOGIC ---
-        function setViewMode(mode) {
-            currentViewMode = mode;
-            document.getElementById('btnGrid').classList.toggle('active', mode==='grid');
-            document.getElementById('btnList').classList.toggle('active', mode==='list');
-            const listEl = document.getElementById('productList');
-            if(mode === 'list') listEl.classList.add('list-view'); else listEl.classList.remove('list-view');
-        }
-
-        function setCategory(cat) { 
-            activeCategory = cat; 
-            updateURLParams({ cat: cat });
-            renderProducts(); 
-            renderCategories(); 
-        }
-
-        function scrollCatSlide(direction) {
-            const container = document.getElementById('catScrollWrapper');
-            if (container) {
-                container.scrollBy({ left: direction, behavior: 'smooth' });
-            }
-        }
-
-        function openAllCategoriesModal() {
-            renderAllCategoriesGrid();
-            document.getElementById('allCategoriesModal').classList.add('active');
+        function isProductOutOfStock(p) {
+            if (!p) return true;
+            const totalStock = (p.variants && p.variants.length > 0)
+                ? p.variants.reduce((s, v) => s + (Number(v.stock) || 0), 0)
+                : (Number(p.quantity) || 0);
+            return totalStock <= 0;
         }
 
         function renderAllCategoriesGrid() {
@@ -2220,12 +2126,7 @@
             let totalCount = 0;
             
             products.forEach(p => {
-                if (!isAdmin && storeSettings.hideOutOfStock) {
-                    const totalStock = p.variants && p.variants.length > 0
-                        ? p.variants.reduce((s, v) => s + (Number(v.stock) || 0), 0)
-                        : (Number(p.quantity) || 0);
-                    if (totalStock <= 0) return;
-                }
+                if (!isAdmin && isHideOutOfStockEnabled() && isProductOutOfStock(p)) return;
                 
                 const cat = (p.category || 'Khác').trim();
                 if (cat) {
@@ -2259,12 +2160,7 @@
             let totalCount = 0;
             
             products.forEach(p => {
-                if (!isAdmin && storeSettings.hideOutOfStock) {
-                    const totalStock = p.variants && p.variants.length > 0
-                        ? p.variants.reduce((s, v) => s + (Number(v.stock) || 0), 0)
-                        : (Number(p.quantity) || 0);
-                    if (totalStock <= 0) return;
-                }
+                if (!isAdmin && isHideOutOfStockEnabled() && isProductOutOfStock(p)) return;
                 
                 const cat = (p.category || 'Khác').trim();
                 if (cat) {
@@ -2281,29 +2177,11 @@
                 const label = isAll ? 'Tất cả sản phẩm' : c;
                 const count = isAll ? totalCount : catCounts[c];
                 const isActive = activeCategory === c;
-                return `
-                    <div class="cat-tab ${isActive ? 'active' : ''}" onclick="setCategory('${c}')">
-                        <span>${label}</span>
-                        <span class="cat-badge-count">${count}</span>
-                    </div>
-                `;
+                return `<button class="cat-pill ${isActive ? 'active' : ''}" onclick="setCategory('${c}')">${label} (${count})</button>`;
             }).join('');
 
-            const container = document.getElementById('categoryTabs');
+            const container = document.getElementById('categoryList');
             if (container) container.innerHTML = html;
-
-            const badge = document.getElementById('catTotalBadge');
-            if (badge) badge.textContent = sortedCats.length;
-        }
-
-        function getActiveVariant(pId) {
-            const p = products.find(x=>x.id==pId);
-            if(!p) return null;
-            if(p.variants.length === 1) return p.variants[0]; 
-            
-            const currentSel = selections[pId] || {};
-            let matchedVariants = p.variants.filter(v => {
-                for(let optId in currentSel) {
                     if(v.optionValues[optId] !== currentSel[optId]) return false;
                 }
                 return true;
@@ -2838,6 +2716,11 @@
             const p = findProductByAnyId(id, urlSlug);
             if (!p) {
                 showToast('⚠️ Sản phẩm không tồn tại hoặc đã bị gỡ', 'warning');
+                showProduct404Modal();
+                return;
+            }
+            if (!isAdmin && isHideOutOfStockEnabled() && isProductOutOfStock(p)) {
+                showToast('⚠️ Sản phẩm này hiện đang hết hàng và đã tự động ẩn khỏi gian hàng', 'warning');
                 showProduct404Modal();
                 return;
             }
