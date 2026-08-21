@@ -1,4 +1,5 @@
 require('dotenv').config();
+// Version: 2026.08.21-DHTK-AUTO-TRIGGER-MAX60S
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
