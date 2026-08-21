@@ -3877,10 +3877,32 @@ ${imagesListPrompt}
 }
 
 app.post('/api/admin/blog/auto-trigger', authenticateToken, async (req, res) => {
-    const host = req.headers['x-forwarded-host'] || req.headers.host || 'thohong.top';
-    const result = await executeAutoBlogCycle(host);
-    if (result.error) return res.status(400).json({ error: result.error });
-    res.json(result);
+    try {
+        if (isAutoBlogRunning) {
+            return res.json({ skipped: true, message: '⚠️ Hệ thống đang bận tự động tạo bài viết khác, vui lòng chờ trong giây lát...' });
+        }
+
+        const host = req.headers['x-forwarded-host'] || req.headers.host || 'donghangtietkiem.com';
+
+        // Phản hồi lập tức 0.5s tránh Vercel Serverless Function Timeout (10s limit)
+        res.json({
+            success: true,
+            status: 'processing',
+            message: '🚀 AI đã bắt đầu tự động tạo & xuất bản bài viết mới ở chế độ chạy ngầm! Vui lòng chờ ~15 giây để bài viết tự động xuất hiện.'
+        });
+
+        // Thực thi quy trình AI viết bài ở nền ngầm
+        setImmediate(async () => {
+            try {
+                const result = await executeAutoBlogCycle(host);
+                console.log('[AUTO-BLOG TRIGGER BACKGROUND RESULT]', result);
+            } catch(e) {
+                console.error('[AUTO-BLOG TRIGGER BACKGROUND EXCEPTION]', e.message);
+            }
+        });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // 9.7 PUBLIC CRON ENDPOINT FOR AUTO-BLOG (Compatible with cron-job.org & Vercel)
