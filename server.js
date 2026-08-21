@@ -3872,6 +3872,19 @@ app.post('/api/admin/blog/auto-trigger', authenticateToken, async (req, res) => 
             return res.json({ skipped: true, message: '⚠️ Hệ thống đang bận tự động tạo bài viết khác, vui lòng chờ trong giây lát...' });
         }
 
+        // Quick diagnostic — kiểm tra TURSO và DeepSeek API Key
+        const tursoUrl = (process.env.TURSO_DATABASE_URL || '').trim();
+        const tursoToken = (process.env.TURSO_AUTH_TOKEN || '').trim();
+        if (!tursoUrl || !tursoToken) {
+            return res.status(500).json({ error: '❌ Thiếu biến môi trường TURSO_DATABASE_URL hoặc TURSO_AUTH_TOKEN trong Vercel Dashboard!' });
+        }
+
+        const apiKeyCheck = await db.execute("SELECT value FROM settings WHERE key = 'deepseekApiKey'");
+        const deepseekKey = apiKeyCheck.rows && apiKeyCheck.rows[0] ? apiKeyCheck.rows[0].value : '';
+        if (!deepseekKey || deepseekKey.length < 10) {
+            return res.status(400).json({ error: '❌ Chưa cấu hình DeepSeek API Key! Vào Tab Blog AI → Mục 1 → Nhập API Key → Lưu Key.' });
+        }
+
         const host = req.headers['x-forwarded-host'] || req.headers.host || 'donghangtietkiem.com';
         const result = await executeAutoBlogCycle(host);
 
