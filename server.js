@@ -3844,24 +3844,14 @@ ${imagesListPrompt}
         await db.execute({ sql: "UPDATE seo_keywords SET status = 'generated' WHERE id = ? OR keyword = ?", args: [keywordId || '', keyword] });
         await db.execute({ sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('autoBlogLastRun', ?)", args: [nowIso] });
 
-        // Auto Push to Google Indexing API & Auto Share to Telegram Blog Channel & Make.com
+        // Auto Push to Google Indexing API & Auto Share to Telegram Blog Channel & Make.com (Chạy song song không block)
         if (status === 'published') {
             const fullBlogUrl = `${baseUrl}/blog/${uniqueSlug}`;
-            try {
-                await pushToGoogleIndexingApi(fullBlogUrl, 'URL_UPDATED', blogId);
-                await shareBlogToTelegram(fullBlogUrl, title, summary, coverImage, blogId);
-            } catch(e) {
-                console.error('[AUTO-INDEX/TELEGRAM HOOK ERROR]', e.message);
-            }
-            
-            try { 
-                await triggerMakeWebhook({ 
-                    id: blogId, title, slug: uniqueSlug, excerpt: summary, 
-                    image: coverImage, content, created_at: nowIso 
-                }); 
-            } catch(e) {
-                console.error('[MAKE WEBHOOK EXCEPTION IN AUTO-BLOG]', e.message); 
-            }
+            Promise.allSettled([
+                pushToGoogleIndexingApi(fullBlogUrl, 'URL_UPDATED', blogId),
+                shareBlogToTelegram(fullBlogUrl, title, summary, coverImage, blogId),
+                triggerMakeWebhook({ id: blogId, title, slug: uniqueSlug, excerpt: summary, image: coverImage, content, created_at: nowIso }, false, host)
+            ]).catch(e => console.error('[AUTO-HOOKS ERROR]', e.message));
         }
 
         Object.keys(ssrSeoCache).forEach(k => { if (k.startsWith('blog_')) delete ssrSeoCache[k]; });
@@ -3883,25 +3873,15 @@ app.post('/api/admin/blog/auto-trigger', authenticateToken, async (req, res) => 
         }
 
         const host = req.headers['x-forwarded-host'] || req.headers.host || 'donghangtietkiem.com';
+        const result = await executeAutoBlogCycle(host);
 
-        // Phản hồi lập tức 0.5s tránh Vercel Serverless Function Timeout (10s limit)
-        res.json({
-            success: true,
-            status: 'processing',
-            message: '🚀 AI đã bắt đầu tự động tạo & xuất bản bài viết mới ở chế độ chạy ngầm! Vui lòng chờ ~15 giây để bài viết tự động xuất hiện.'
-        });
-
-        // Thực thi quy trình AI viết bài ở nền ngầm
-        setImmediate(async () => {
-            try {
-                const result = await executeAutoBlogCycle(host);
-                console.log('[AUTO-BLOG TRIGGER BACKGROUND RESULT]', result);
-            } catch(e) {
-                console.error('[AUTO-BLOG TRIGGER BACKGROUND EXCEPTION]', e.message);
-            }
-        });
+        if (result && result.error) {
+            return res.status(400).json({ error: result.error });
+        }
+        res.json(result || { success: true, message: '🎉 Đã tự động tạo và xuất bản bài viết mới thành công!' });
     } catch(e) {
-        res.status(500).json({ error: e.message });
+        console.error('[AUTO-TRIGGER ERROR]', e);
+        res.status(500).json({ error: 'Lỗi server khi tạo bài viết: ' + (e.message || String(e)) });
     }
 });
 

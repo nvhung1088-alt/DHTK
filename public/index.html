@@ -6520,7 +6520,7 @@ YÊU CẦU SEO CHI TIẾT:
         async function triggerAutoBlogNow() {
             const token = localStorage.getItem('dhtk_jwt');
             const btn = document.getElementById('btnTriggerAuto');
-            if (btn) { btn.disabled = true; btn.innerText = '⏳ AI đang khởi chạy tự động...'; }
+            if (btn) { btn.disabled = true; btn.innerText = '⏳ AI đang tự động tạo bài viết (~4s)...'; }
 
             try {
                 const res = await fetch('/api/admin/blog/auto-trigger', {
@@ -6532,33 +6532,15 @@ YÊU CẦU SEO CHI TIẾT:
                 let data = {};
                 try { data = JSON.parse(rawText); } catch(err) { data = { error: 'Lỗi phản hồi server: ' + rawText.substring(0, 80) }; }
 
-                if (data.error) {
-                    if (btn) { btn.disabled = false; btn.innerText = '🚀 Đăng Ngay 1 Bài (Trigger)'; }
-                    return showToast('Lỗi: ' + data.error, 'error');
-                }
+                if (btn) { btn.disabled = false; btn.innerText = '🚀 Đăng Ngay 1 Bài (Trigger)'; }
 
-                if (data.skipped) {
-                    if (btn) { btn.disabled = false; btn.innerText = '🚀 Đăng Ngay 1 Bài (Trigger)'; }
-                    return showToast(data.message || '⚠️ Hệ thống đang bận tự động tạo bài viết khác, vui lòng thử lại sau.', 'warning');
-                }
+                if (data.error) return showToast('Lỗi: ' + data.error, 'error');
+                if (data.skipped) return showToast(data.message || '⚠️ Hệ thống đang bận tự động tạo bài viết trước, vui lòng thử lại sau.', 'warning');
 
-                showToast(data.message || '🎉 AI đã nhận lệnh và đang tự động xuất bản bài viết mới!', 'success');
-
-                // Đếm lùi tự động làm mới danh sách bài viết sau 15 giây
-                let countdown = 15;
-                const interval = setInterval(() => {
-                    if (btn) btn.innerText = `⏳ AI đang viết bài (${countdown}s)...`;
-                    countdown--;
-                    if (countdown <= 0) {
-                        clearInterval(interval);
-                        if (btn) { btn.disabled = false; btn.innerText = '🚀 Đăng Ngay 1 Bài (Trigger)'; }
-                        loadAdminBlog();
-                        loadAdminKeywords();
-                        loadAutoBlogConfig();
-                        showToast('✨ Đã cập nhật danh sách bài viết mới nhất!', 'success');
-                    }
-                }, 1000);
-
+                showToast(`🎉 AI đã tự động xuất bản bài viết: "${data.title || 'Bài viết mới'}"!`, 'success');
+                loadAdminBlog();
+                loadAdminKeywords();
+                loadAutoBlogConfig();
             } catch(e) {
                 if (btn) { btn.disabled = false; btn.innerText = '🚀 Đăng Ngay 1 Bài (Trigger)'; }
                 showToast('Lỗi kết nối: ' + e.message, 'error');
