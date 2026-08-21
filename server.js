@@ -3553,71 +3553,42 @@ async function executeAutoBlogCycle(host = 'thohong.top') {
         let kwResult = await db.execute("SELECT id, keyword, status FROM seo_keywords WHERE status = 'pending' OR status IS NULL OR status = '' OR status != 'generated' ORDER BY created_at ASC LIMIT 1");
         let kwRow = kwResult.rows?.[0];
 
-        // BƯỚC 2: Nếu đã hết từ khóa trong danh sách đợi -> Tự động kích hoạt AI Gợi Ý & Thêm Hàng Đợi (nạp 10 từ khóa mới)
+        // BƯỚC 2: Nếu đã hết từ khóa → Tự động tạo fallback nhanh từ category sản phẩm (KHÔNG gọi DeepSeek để tránh vượt 10s Vercel Hobby limit)
         if (!kwRow) {
-            console.log('[AUTO-BLOG BƯỚC 2] Hàng đợi rỗng! Đang tự động gọi AI DeepSeek gợi ý 10 từ khóa mới...');
-            const productsResult = await db.execute("SELECT DISTINCT category FROM products WHERE status = 'active' OR status IS NULL OR status = '' LIMIT 30");
-            const categories = (productsResult.rows || []).map(r => r.category).filter(Boolean);
-
-            let suggestPrompt = settingsMap['autoBlogSuggestPrompt'] || '';
-            if (!suggestPrompt.trim()) {
-                suggestPrompt = `Bạn là chuyên gia SEO hàng đầu cho website e-commerce Việt Nam.
-Cửa hàng "${storeName}" chuyên kinh doanh các nhóm ngành hàng: ${categories.join(', ')}.
-Hãy gợi ý 10 từ khóa SEO tiềm năng nhất cho blog của cửa hàng.
-Trả về kết quả duy nhất 1 mảng JSON array: [{"keyword": "...", "reason": "...", "difficulty": "Dễ|Trung bình|Khó"}]`;
-            } else {
-                suggestPrompt = suggestPrompt.replace(/\${storeName}/g, storeName).replace(/\${categories}/g, categories.join(', '));
+            console.log('[AUTO-BLOG BƯỚC 2] Hàng đợi rỗng! Tạo từ khóa fallback nhanh từ category sản phẩm...');
+            
+            const catResult = await db.execute("SELECT DISTINCT category FROM products WHERE (status = 'active' OR status IS NULL OR status = '') AND category IS NOT NULL AND category != '' ORDER BY RANDOM() LIMIT 5");
+            const cats = (catResult.rows || []).map(r => r.category).filter(Boolean);
+            
+            if (cats.length === 0) {
+                return { error: 'Không có sản phẩm nào trong cửa hàng để tạo từ khóa. Vui lòng thêm sản phẩm trước.' };
             }
 
-            try {
-                const sugResp = await fetch('https://api.deepseek.com/chat/completions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                    body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: suggestPrompt }], temperature: 0.7 })
-                });
-                const sugData = await sugResp.json();
-                const text = sugData.choices?.[0]?.message?.content || '[]';
-                const jsonMatch = text.match(/\[[\s\S]*\]/);
-                const keywords = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+            const templates = [
+                `Top ${cats[0]} bán chạy nhất giá sỉ tốt`,
+                `Kinh nghiệm chọn mua ${cats[0]} sỉ lẻ chất lượng cao`,
+                `Mua ${cats[0]} ở đâu giá tốt nhất`,
+                `Xu hướng ${cats[0]} hot nhất hiện nay`,
+                `Bí quyết kinh doanh ${cats[0]} online hiệu quả`
+            ];
 
-                const now = new Date().toISOString();
-                for (const k of keywords) {
-                    if (k.keyword) {
-                        const kwId = 'kw_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-                        try {
-                            await db.execute({
-                                sql: "INSERT OR IGNORE INTO seo_keywords (id, keyword, difficulty, reason, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)",
-                                args: [kwId, k.keyword.trim(), k.difficulty || 'Trung bình', k.reason || '', now]
-                            });
-                        } catch(err) {}
-                    }
-                }
-
-                // Re-query keyword from queue
-                kwResult = await db.execute("SELECT id, keyword, status FROM seo_keywords WHERE status = 'pending' OR status IS NULL OR status = '' OR status != 'generated' ORDER BY created_at ASC LIMIT 1");
-                kwRow = kwResult.rows?.[0];
-            } catch(e) {
-                console.error('[AUTO-BLOG SUGGEST ERROR]', e.message);
-            }
-
-            // Fast fallback keyword if AI suggestion didn't yield pending rows
-            if (!kwRow) {
-                const catResult = await db.execute("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' ORDER BY RANDOM() LIMIT 3");
-                const cats = (catResult.rows || []).map(r => r.category).filter(Boolean);
-                const chosenCat = cats[0] || 'phụ kiện thời trang';
-
-                const generatedKw = `Kinh nghiệm chọn mua ${chosenCat} sỉ lẻ chất lượng cao`;
-                const kwId = 'kw_' + Date.now();
-                const now = new Date().toISOString();
-
+            const now = new Date().toISOString();
+            for (const tpl of templates) {
+                const kwId = 'kw_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
                 try {
                     await db.execute({
                         sql: "INSERT OR IGNORE INTO seo_keywords (id, keyword, difficulty, reason, status, created_at) VALUES (?, ?, 'Trung bình', 'Tự động tạo từ ngành hàng', 'pending', ?)",
-                        args: [kwId, generatedKw, now]
+                        args: [kwId, tpl, now]
                     });
                 } catch(e) {}
+            }
 
-                kwRow = { id: kwId, keyword: generatedKw };
+            // Re-query keyword from queue
+            kwResult = await db.execute("SELECT id, keyword, status FROM seo_keywords WHERE status = 'pending' OR status IS NULL OR status = '' OR status != 'generated' ORDER BY created_at ASC LIMIT 1");
+            kwRow = kwResult.rows?.[0];
+
+            if (!kwRow) {
+                kwRow = { id: 'kw_fallback', keyword: `Kinh nghiệm chọn mua ${cats[0]} sỉ lẻ chất lượng cao` };
             }
         }
 
