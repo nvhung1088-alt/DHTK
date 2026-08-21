@@ -3797,20 +3797,29 @@ ${imagesListPrompt}
                 .replace(/\${imagesListPrompt}/g, imagesListPrompt);
         }
 
-        let response = await fetch('https://api.deepseek.com/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-            body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }], temperature: 0.7 })
-        });
-        let data = await response.json();
-        if (data.error) {
+        const deepseekController = new AbortController();
+        const deepseekTimeout = setTimeout(() => deepseekController.abort(), 45000);
+
+        let response;
+        try {
             response = await fetch('https://api.deepseek.com/chat/completions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                body: JSON.stringify({ model: 'deepseek-chat', messages: [{ role: 'user', content: prompt }], temperature: 0.7 })
+                body: JSON.stringify({ 
+                    model: 'deepseek-chat', 
+                    messages: [{ role: 'user', content: prompt }], 
+                    temperature: 0.7,
+                    max_tokens: 2500
+                }),
+                signal: deepseekController.signal
             });
-            data = await response.json();
-            if (data.error) return { error: data.error.message || 'DeepSeek API Error' };
+        } finally {
+            clearTimeout(deepseekTimeout);
+        }
+
+        let data = await response.json();
+        if (data.error) {
+            return { error: 'Lỗi DeepSeek API: ' + (data.error.message || JSON.stringify(data.error)) };
         }
 
         const text = data.choices?.[0]?.message?.content || '';
