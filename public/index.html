@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+    <script>
+        if (window.location.hostname === 'donghangtietkiem.com') {
+            window.location.replace('https://www.donghangtietkiem.com' + window.location.pathname + window.location.search + window.location.hash);
+        }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tổng Kho Sỉ Lẻ Thỏ Hồng - Hệ Thống Đặt Hàng Thông Minh</title>
@@ -4306,8 +4311,11 @@
                     body: JSON.stringify({ username, passwordHash: inputHash })
                 });
                 
-                const json = await res.json();
-                if (!res.ok) throw new Error(json.error || 'Sai thông tin đăng nhập');
+                const raw = await res.text();
+                let json = {};
+                try { json = JSON.parse(raw); } catch(e) { json = { error: 'Lỗi phản hồi máy chủ: ' + raw.substring(0, 80) }; }
+
+                if (!res.ok || json.error) throw new Error(json.error || 'Sai thông tin đăng nhập');
 
                 isAdmin = true;
                 localStorage.setItem('dhtk_isAdmin', 'true');
