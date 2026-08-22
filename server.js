@@ -20,6 +20,9 @@ if (!JWT_SECRET) {
 
 // Cho phep cac domain hop le
 const ALLOWED_ORIGINS = [
+    'https://donghangtietkiem.com',
+    'https://www.donghangtietkiem.com',
+    'https://dhtk.vercel.app',
     'https://thohong.top',
     'https://www.thohong.top',
     'https://thohong.vercel.app',
@@ -28,11 +31,14 @@ const ALLOWED_ORIGINS = [
 ];
 app.use(cors({
     origin: (origin, callback) => {
-        // Cho phep request khong co origin (Postman, curl, mobile app)
-        if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+        // Cho phep request khong co origin (Postman, curl, mobile app) hoac nam trong danh sach cho phep
+        if (!origin || ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.vercel.app') || origin.includes('donghangtietkiem.com') || origin.includes('thohong.top')) {
+            return callback(null, true);
+        }
         callback(new Error('CORS: Domain not allowed'));
     },
-    methods: ['GET', 'POST', 'DELETE', 'OPTIONS']
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
 app.use(express.json({ limit: '50mb' }));
 
