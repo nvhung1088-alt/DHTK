@@ -3961,10 +3961,10 @@ const slugifyVietnamese = (str) => {
         .replace(/^-+|-+$/g, '');
 };
 
-// DYNAMIC XML SITEMAP GENERATOR (FETCHES ALL PRODUCTS & CATEGORIES FROM TURSO DB)
+// DYNAMIC XML SITEMAP GENERATOR (FETCHES ALL PRODUCTS, CATEGORIES & BLOG POSTS FROM TURSO DB)
 app.get('/sitemap.xml', async (req, res) => {
     try {
-        const host = req.headers['x-forwarded-host'] || req.headers.host || 'thohong.top';
+        const host = req.headers['x-forwarded-host'] || req.headers.host || 'donghangtietkiem.com';
         const protocol = req.headers['x-forwarded-proto'] || 'https';
         const baseUrl = `${protocol}://${host}`;
         const today = new Date().toISOString().split('T')[0];
@@ -3972,10 +3972,13 @@ app.get('/sitemap.xml', async (req, res) => {
         let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
         xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
         
+        // 1. Core Static Pages
         xml += `  <url>\n    <loc>${baseUrl}/</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n`;
-        xml += `  <url>\n    <loc>${baseUrl}/dia-chi</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.9</priority>\n  </url>\n`;
-        xml += `  <url>\n    <loc>${baseUrl}/lien-he</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.9</priority>\n  </url>\n`;
+        xml += `  <url>\n    <loc>${baseUrl}/blog</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>\n`;
+        xml += `  <url>\n    <loc>${baseUrl}/dia-chi</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+        xml += `  <url>\n    <loc>${baseUrl}/lien-he</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
 
+        // 2. Categories
         const result = await db.execute("SELECT id, name, category, status FROM products WHERE status = 'active' OR status IS NULL OR status = ''");
         const rows = result.rows || [];
 
@@ -3988,35 +3991,29 @@ app.get('/sitemap.xml', async (req, res) => {
             const catSlug = slugifyVietnamese(cat);
             if (catSlug) {
                 const catUrl = `${baseUrl}/danh-muc/${catSlug}`;
-                xml += `  <url>\n    <loc>${catUrl}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+                xml += `  <url>\n    <loc>${catUrl}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>0.85</priority>\n  </url>\n`;
             }
         });
 
+        // 3. Products
         rows.forEach(r => {
             const pId = r.id;
             const pName = r.name || 'san-pham';
             const nameSlug = slugifyVietnamese(pName) || 'san-pham';
             const prodUrl = `${baseUrl}/san-pham/${nameSlug}-p${pId}`;
-            let title = 'Tổng Kho Sỉ Lẻ Thỏ Hồng - Hệ Thống Đặt Hàng Thông Minh';
-            let desc = 'Hệ thống đặt hàng sỉ lẻ thông minh Thỏ Hồng / ĐHTK, tự động tính toán chiết khấu, đồng bộ tồn kho POS trực tuyến.';
-            let image = 'https://thohong.top/media__1784598666512.png';
-            let blogPostObj = null;
-            let prodStockStatus = 'InStock';
             xml += `  <url>\n    <loc>${prodUrl}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.9</priority>\n  </url>\n`;
         });
 
-        // Add published Blog posts to Sitemap dynamically from blogs table
+        // 4. Published Blog Posts (Real-time Dynamic from blog_posts)
         try {
-            const blogResult = await db.execute("SELECT id, slug, title, createdAt, updatedAt FROM blogs ORDER BY createdAt DESC");
+            const blogResult = await db.execute("SELECT id, slug, title, status, created_at, updated_at FROM blog_posts WHERE status = 'published' OR status IS NULL OR status = '' ORDER BY created_at DESC");
             const blogRows = blogResult.rows || [];
             blogRows.forEach(b => {
-                const bSlug = b.slug?.value || b.slug || b[1]?.value || b[1] || '';
-                const bTitle = b.title?.value || b.title || b[2]?.value || b[2] || '';
-                const rawBlogSlug = bSlug || toAsciiSlug(bTitle) || b.id;
-                if (rawBlogSlug) {
-                    const blogUrl = `${baseUrl}/blog/${rawBlogSlug}`;
-                    const bUpdated = b.updatedAt?.value || b.updatedAt || b.createdAt?.value || b.createdAt || today;
-                    const lastmod = String(bUpdated).split('T')[0] || today;
+                const bSlug = b.slug || toAsciiSlug(b.title || '') || b.id;
+                if (bSlug) {
+                    const blogUrl = `${baseUrl}/blog/${bSlug}`;
+                    const rawDate = b.updated_at || b.created_at || today;
+                    const lastmod = String(rawDate).split('T')[0] || today;
                     xml += `  <url>\n    <loc>${blogUrl}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.85</priority>\n  </url>\n`;
                 }
             });
@@ -4030,7 +4027,7 @@ app.get('/sitemap.xml', async (req, res) => {
         return res.send(xml);
     } catch(err) {
         console.error('[DYNAMIC SITEMAP ERROR]', err.message);
-        const host = req.headers['x-forwarded-host'] || req.headers.host || 'thohong.top';
+        const host = req.headers['x-forwarded-host'] || req.headers.host || 'donghangtietkiem.com';
         const today = new Date().toISOString().split('T')[0];
         res.setHeader('Content-Type', 'application/xml; charset=utf-8');
         return res.send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://${host}/</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url></urlset>`);
