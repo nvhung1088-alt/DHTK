@@ -6519,14 +6519,23 @@ YÊU CẦU SEO CHI TIẾT:
 
         async function triggerAutoBlogNow() {
             const token = localStorage.getItem('dhtk_jwt');
+            if (!token) {
+                showToast('⚠️ Phiên đăng nhập chưa khởi tạo hoặc đã hết hạn! Vui lòng bấm Đăng xuất rồi đăng nhập lại.', 'warning');
+                return;
+            }
             const btn = document.getElementById('btnTriggerAuto');
-            if (btn) { btn.disabled = true; btn.innerText = '⏳ AI đang tự động viết bài (~6s)...'; }
+            if (btn) { btn.disabled = true; btn.innerText = '⏳ AI đang tự động viết bài (~10s)...'; }
 
             try {
                 const res = await fetch('/api/admin/blog/auto-trigger', {
                     method: 'POST',
                     headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
                 });
+
+                if (res.status === 401 || res.status === 403) {
+                    if (btn) { btn.disabled = false; btn.innerText = '🚀 Đăng Ngay 1 Bài (Trigger)'; }
+                    return showToast('⚠️ Phiên đăng nhập hết hạn! Vui lòng bấm nút "Đăng xuất" ở góc trên và đăng nhập lại Admin.', 'warning');
+                }
 
                 const rawText = await res.text();
                 let data = {};
