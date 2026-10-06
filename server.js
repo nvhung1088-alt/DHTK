@@ -107,7 +107,8 @@ async function executeTurso(sql, args = []) {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(reqBody)
+        body: JSON.stringify(reqBody),
+        signal: AbortSignal.timeout(5000)
     });
 
     if (!res.ok) {
@@ -152,7 +153,8 @@ async function executeBatchTurso(stmts) {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(reqBody)
+        body: JSON.stringify(reqBody),
+        signal: AbortSignal.timeout(5000)
     });
 
     if (!res.ok) {
@@ -4036,7 +4038,7 @@ app.get('/sitemap.xml', async (req, res) => {
 
 // Dynamic robots.txt
 app.get('/robots.txt', (req, res) => {
-    const host = req.headers['x-forwarded-host'] || req.headers.host || 'thohong.top';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'donghangtietkiem.com';
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const baseUrl = `${protocol}://${host}`;
     const txt = `# robots.txt - ${host}\nUser-agent: *\nAllow: /\nDisallow: /admin/\n\nSitemap: ${baseUrl}/sitemap.xml\n`;
@@ -4049,7 +4051,8 @@ const escapeHtmlServer = (s) => String(s || '').replace(/&/g, '&amp;').replace(/
 const ssrSeoCache = {}; // Memory cache for warm starts
 
 app.use(async (req, res, next) => {
-    const fullPath = req.headers['x-matched-path'] || req.originalUrl || req.url || '';
+    try {
+        const fullPath = req.headers['x-matched-path'] || req.originalUrl || req.url || '';
     if (req.path.startsWith('/api/') || req.url.startsWith('/api/') || fullPath.includes('/api/')) return next();
 
     const isCat = req.query.seo_type === 'cat' || fullPath.includes('/danh-muc/');
@@ -4082,10 +4085,10 @@ app.use(async (req, res, next) => {
 
     const cacheKey = `${isCat ? 'cat' : isBlog ? 'blog' : 'prod'}_${slug}`;
 
-    let title = 'Tổng Kho Sỉ Lẻ Thỏ Hồng - Hệ Thống Đặt Hàng Thông Minh';
-    let desc = 'Hệ thống đặt hàng sỉ lẻ thông minh Thỏ Hồng / ĐHTK, tự động tính toán chiết khấu, đồng bộ tồn kho POS trực tuyến.';
-    let image = 'https://thohong.top/media__1784598666512.png';
-    const host = req.headers['x-forwarded-host'] || req.headers.host || 'thohong.top';
+    let title = 'Đồng Hành Tiết Kiệm - Tổng Kho Vật Tư Đóng Gói Sỉ Lẻ';
+    let desc = 'Hệ thống cung cấp vật tư đóng gói, băng dính, túi gói hàng, màng PE sỉ lẻ giá rẻ số 1 Đồng Hành Tiết Kiệm.';
+    let image = 'https://donghangtietkiem.com/media__1784218914381.png';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'donghangtietkiem.com';
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const fullUrl = `${protocol}://${host}${fullPath}`;
     let blogPostObj = null;
@@ -4106,42 +4109,52 @@ app.use(async (req, res, next) => {
 
             const dbQueryPromise = (async () => {
                 const decodedSlug = decodeURIComponent(slug);
-                let storeName = 'Thỏ Hồng';
+                let storeName = 'Đồng Hành Tiết Kiệm';
 
                 if (isBlog) {
                     const cleanBlogSlug = decodedSlug.replace(/^\/?blog\/?/i, '').trim();
-                    const batchRes = await db.executeBatch([
-                        { sql: "SELECT key, value FROM settings WHERE key IN ('storeName')", args: [] },
-                        { sql: "SELECT id, title, summary, content, imageUrl, createdAt, updatedAt FROM blogs WHERE slug = ? OR id = ? OR LOWER(slug) = ? LIMIT 1", args: [cleanBlogSlug, cleanBlogSlug, cleanBlogSlug.toLowerCase()] }
-                    ]);
-                    const settingsRows = batchRes.results?.[0]?.response?.result?.rows || [];
-                    settingsRows.forEach(r => { if (r[0]?.value === 'storeName') storeName = r[1]?.value || storeName; });
+                    if (!cleanBlogSlug || cleanBlogSlug === 'blog') {
+                        title = `Blog Tin Tức & Cẩm Nang Tiết Kiệm | ${storeName}`;
+                        desc = `Tổng hợp cẩm nang mua sắm thông minh, kiến thức vật tư đóng gói và giải pháp tiết kiệm tối ưu tại ${storeName}.`;
+                        blogPostObj = { title, desc, image, created: new Date().toISOString(), updated: new Date().toISOString() };
+                    } else {
+                        const batchRes = await db.executeBatch([
+                            { sql: "SELECT key, value FROM settings WHERE key IN ('storeName')", args: [] },
+                            { sql: "SELECT id, title, summary, content, cover_image, created_at, updated_at FROM blog_posts WHERE slug = ? OR id = ? OR LOWER(slug) = ? LIMIT 1", args: [cleanBlogSlug, cleanBlogSlug, cleanBlogSlug.toLowerCase()] }
+                        ]);
+                        const settingsRows = batchRes.results?.[0]?.response?.result?.rows || [];
+                        settingsRows.forEach(r => { if (r[0]?.value === 'storeName') storeName = r[1]?.value || storeName; });
 
-                    let blogRows = batchRes.results?.[1]?.response?.result?.rows || [];
-                    if (blogRows.length === 0) {
-                        const fbRes = await db.execute({
-                            sql: "SELECT id, title, summary, content, imageUrl, createdAt, updatedAt FROM blogs WHERE LOWER(title) LIKE ? OR LOWER(slug) LIKE ? LIMIT 1",
-                            args: [`%${cleanBlogSlug.toLowerCase()}%`, `%${cleanBlogSlug.toLowerCase()}%`]
-                        });
-                        blogRows = fbRes.rows || [];
-                    }
+                        let blogRows = batchRes.results?.[1]?.response?.result?.rows || [];
+                        if (blogRows.length === 0) {
+                            const fbRes = await db.execute({
+                                sql: "SELECT id, title, summary, content, cover_image, created_at, updated_at FROM blog_posts WHERE LOWER(title) LIKE ? OR LOWER(slug) LIKE ? LIMIT 1",
+                                args: [`%${cleanBlogSlug.toLowerCase()}%`, `%${cleanBlogSlug.toLowerCase()}%`]
+                            });
+                            blogRows = fbRes.rows || [];
+                        }
 
-                    if (blogRows.length > 0) {
-                        const row = blogRows[0];
-                        const bTitle = row.title || row[1]?.value || row[1] || '';
-                        const bSummary = row.summary || row[2]?.value || row[2] || '';
-                        const bContent = row.content || row[3]?.value || row[3] || '';
-                        const bCover = row.imageUrl || row[4]?.value || row[4] || '';
-                        const bCreated = row.createdAt || row[5]?.value || row[5] || new Date().toISOString();
-                        const bUpdated = row.updatedAt || row[6]?.value || row[6] || bCreated;
+                        if (blogRows.length > 0) {
+                            const row = blogRows[0];
+                            const bTitle = row.title || row[1]?.value || row[1] || '';
+                            const bSummary = row.summary || row[2]?.value || row[2] || '';
+                            const bContent = row.content || row[3]?.value || row[3] || '';
+                            const bCover = row.cover_image || row[4]?.value || row[4] || '';
+                            const bCreated = row.created_at || row[5]?.value || row[5] || new Date().toISOString();
+                            const bUpdated = row.updated_at || row[6]?.value || row[6] || bCreated;
 
-                        const rawText = bSummary || bContent;
-                        const cleanSummary = String(rawText).replace(/<[^>]*>/g, '').replace(/[#*>\-\n\r]/g, ' ').replace(/\s+/g, ' ').trim();
+                            const rawText = bSummary || bContent;
+                            const cleanSummary = String(rawText).replace(/<[^>]*>/g, '').replace(/[#*>\-\n\r]/g, ' ').replace(/\s+/g, ' ').trim();
 
-                        title = `${bTitle} | ${storeName}`;
-                        desc = cleanSummary.substring(0, 155) || `Đọc bài viết ${bTitle} mới nhất tại ${storeName}. Mẹo hay và báo giá văn phòng phẩm tốt nhất.`;
-                        if (bCover) image = bCover;
-                        blogPostObj = { title: bTitle, desc, image, created: bCreated, updated: bUpdated };
+                            title = `${bTitle} | ${storeName}`;
+                            desc = cleanSummary.substring(0, 155) || `Đọc bài viết ${bTitle} mới nhất tại ${storeName}. Cẩm nang vật tư đóng gói và giải pháp tiết kiệm.`;
+                            if (bCover) image = bCover;
+                            blogPostObj = { title: bTitle, desc, image, created: bCreated, updated: bUpdated };
+                        } else {
+                            title = `Blog Tin Tức & Cẩm Nang Tiết Kiệm | ${storeName}`;
+                            desc = `Tổng hợp cẩm nang mua sắm thông minh, kiến thức vật tư đóng gói tại ${storeName}.`;
+                            blogPostObj = { title, desc, image, created: new Date().toISOString(), updated: new Date().toISOString() };
+                        }
                     }
                 } else if (isCat) {
                     const rawCatName = decodedSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
@@ -4270,8 +4283,8 @@ app.use(async (req, res, next) => {
             "image": [blogPostObj.image],
             "datePublished": blogPostObj.created,
             "dateModified": blogPostObj.updated,
-            "author": { "@type": "Organization", "name": title.split(' | ')[1] || "Thỏ Hồng" },
-            "publisher": { "@type": "Organization", "name": title.split(' | ')[1] || "Thỏ Hồng" },
+            "author": { "@type": "Organization", "name": title.split(' | ')[1] || "Đồng Hành Tiết Kiệm" },
+            "publisher": { "@type": "Organization", "name": title.split(' | ')[1] || "Đồng Hành Tiết Kiệm" },
             "mainEntityOfPage": { "@type": "WebPage", "@id": fullUrl }
         };
         const bcObj = {
@@ -4324,12 +4337,18 @@ app.use(async (req, res, next) => {
         out = out.replace('</head>', `${ssrSchemaJson}</head>`);
     }
 
-    if (settings.customHeaderCode) {
+    if (typeof settings !== 'undefined' && settings?.customHeaderCode) {
         out = out.replace('</head>', `${settings.customHeaderCode}\n</head>`);
     }
 
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.send(out);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(out);
+    } catch (fatalErr) {
+        console.error('[SEO SSR FATAL]', fatalErr.message);
+        const fallbackHtml = getCachedHtml() || '<!DOCTYPE html><html><head><title>Đồng Hành Tiết Kiệm</title></head><body></body></html>';
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(fallbackHtml);
+    }
 });
 
 // 16. SPA FALLBACK ROUTE (GUARANTEES 200 OK FOR ALL FRONTEND ROUTES)
