@@ -4261,8 +4261,13 @@ app.use(async (req, res, next) => {
     }
 
     // Inject dynamic Meta, Canonical and Open Graph tags into HTML response
-    let out = html
-        .replace(/<head>/i, `<head>\n    <link rel="canonical" href="${escapeHtmlServer(fullUrl)}">`)
+    let out = html;
+    if (/<link rel="canonical"[^>]*>/i.test(out)) {
+        out = out.replace(/<link rel="canonical"[^>]*>/i, `<link rel="canonical" id="canonicalTag" href="${escapeHtmlServer(fullUrl)}">`);
+    } else {
+        out = out.replace(/<head>/i, `<head>\n    <link rel="canonical" id="canonicalTag" href="${escapeHtmlServer(fullUrl)}">`);
+    }
+    out = out
         .replace(/<title>.*?<\/title>/i, `<title>${escapeHtmlServer(title)}</title>`)
         .replace(/<meta name="description" id="seoDescription" content=".*?">/i, `<meta name="description" id="seoDescription" content="${escapeHtmlServer(desc)}">`)
         .replace(/<meta property="og:title" id="ogTitle" content=".*?">/i, `<meta property="og:title" id="ogTitle" content="${escapeHtmlServer(title)}">`)
